@@ -1,0 +1,48 @@
+{
+  "versions": [
+    {
+      "id": "cuv",
+      "file": "/data/bibles/cuv.json"
+    },
+    {
+      "id": "lzz",
+      "file": "/data/bibles/lzz.json"
+    },
+    {
+      "id": "bbe",
+      "file": "/data/bibles/bbe.json"
+    },
+    {
+      "id": "web",
+      "file": "/data/bibles/web.json"
+    },
+    {
+      "id": "bsb",
+      "file": "/data/bibles/bsb.json"
+    },
+    {
+      "id": "oeb",
+      "file": "/data/bibles/oeb.json"
+    },
+    {
+      "id": "kjv",
+      "file": "/data/bibles/kjv.json"
+    },
+    {
+      "id": "asv",
+      "file": "/data/bibles/asv.json"
+    },
+    {
+      "id": "niv",
+      "file": "/data/bibles/niv.json"
+    },
+    {
+      "id": "esv",
+      "file": "/data/bibles/esv.json"
+    },
+    {
+      "id": "cnv",
+      "file": "/data/bibles/cnv.json"
+    }
+  ]
+}

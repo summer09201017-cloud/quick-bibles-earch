@@ -1,0 +1,26 @@
+{
+  "translation": {
+    "id": "niv",
+    "short": "NIV",
+    "name": "New International Version",
+    "language": "English"
+  },
+  "verses": [
+    {
+      "id": "43-3-16",
+      "bookNumber": 43,
+      "book": "John",
+      "chapter": 3,
+      "verse": 16,
+      "text": "For God so loved the world..."
+    },
+    {
+      "id": "45-8-28",
+      "bookNumber": 45,
+      "book": "Romans",
+      "chapter": 8,
+      "verse": 28,
+      "text": "And we know that in all things God works..."
+    }
+  ]
+}
