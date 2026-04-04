@@ -445,6 +445,7 @@ function useInstallPrompt() {
 }
 
 export default function App() {
+  const headerRef = useRef(null)
   const searchWorkerRef = useRef(null)
   const builtInVersionsRef = useRef({})
   const requestIdRef = useRef(0)
@@ -485,6 +486,8 @@ export default function App() {
     key: '',
     token: 0
   })
+  const [mobileHeaderLift, setMobileHeaderLift] = useState(0)
+  const [mobileHeaderMaxLift, setMobileHeaderMaxLift] = useState(240)
 
   const availableVersions = useMemo(
     () => catalogState.map((item) => versionsById[item.id]).filter(Boolean),
@@ -824,6 +827,20 @@ export default function App() {
     return () => window.cancelAnimationFrame(frameId)
   }, [readerChapterEntries, readerJumpTarget])
 
+  useEffect(() => {
+    function measureMobileHeaderLiftRange() {
+      const headerHeight = headerRef.current?.offsetHeight ?? 0
+      const nextMaxLift = Math.max(0, headerHeight - 76)
+      setMobileHeaderMaxLift(nextMaxLift)
+      setMobileHeaderLift((current) => Math.min(current, nextMaxLift))
+    }
+
+    measureMobileHeaderLiftRange()
+    window.addEventListener('resize', measureMobileHeaderLiftRange)
+
+    return () => window.removeEventListener('resize', measureMobileHeaderLiftRange)
+  }, [])
+
   async function handleImport(event) {
     const files = Array.from(event.target.files ?? [])
     if (files.length === 0) {
@@ -1028,7 +1045,11 @@ export default function App() {
   return (
     <div className="soft-grid min-h-screen bg-slate-50 text-slate-800">
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 pb-10 pt-6 sm:px-6 lg:px-8">
-        <header className="glass sticky top-3 z-20 rounded-3xl border border-slate-200/80 p-5 shadow-glow">
+        <header
+          ref={headerRef}
+          style={{ '--mobile-header-lift': String(mobileHeaderLift) }}
+          className="glass mobile-shiftable-header sticky top-3 z-20 rounded-3xl border border-slate-200/80 p-5 shadow-glow"
+        >
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
               <div className="mb-3 inline-flex items-center rounded-full border border-yellow-400/25 bg-yellow-100 px-3 py-1 text-xs font-semibold tracking-[0.24em] text-yellow-700">
@@ -1114,6 +1135,24 @@ export default function App() {
             </button>
           </div>
         </header>
+
+        <div className="mobile-header-slider fixed right-1 top-1/2 z-30 -translate-y-1/2 lg:hidden">
+          <div className="flex items-center gap-2 rounded-2xl border border-slate-300/80 bg-white/90 px-2 py-3 shadow-glow backdrop-blur">
+            <span className="[writing-mode:vertical-rl] text-[10px] font-semibold tracking-[0.18em] text-slate-600">
+              標題上移
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={mobileHeaderMaxLift}
+              step={2}
+              value={mobileHeaderLift}
+              onChange={(event) => setMobileHeaderLift(Number(event.target.value))}
+              className="mobile-header-slider-input h-5 w-28 rotate-90 accent-sky-600"
+              aria-label="調整標題區上移高度"
+            />
+          </div>
+        </div>
 
         <main className="mt-6 grid flex-1 gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
           <aside className="space-y-6">
