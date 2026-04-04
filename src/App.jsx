@@ -18,6 +18,7 @@ import { buildReferenceLabel, buildVerseKey, getHighlightRegex } from './lib/sea
 
 const BOOK_LOOKUP = Object.fromEntries(BOOKS.map((book) => [book.number, book]))
 const READER_SECTION_ID = 'chapter-reader'
+const MOBILE_HEADER_LIFT_STORAGE_KEY = 'mobile-header-lift'
 
 function StatCard({ label, value, hint }) {
   return (
@@ -486,7 +487,14 @@ export default function App() {
     key: '',
     token: 0
   })
-  const [mobileHeaderLift, setMobileHeaderLift] = useState(0)
+  const [mobileHeaderLift, setMobileHeaderLift] = useState(() => {
+    if (typeof window === 'undefined') {
+      return 0
+    }
+
+    const saved = Number(window.localStorage.getItem(MOBILE_HEADER_LIFT_STORAGE_KEY) ?? '0')
+    return Number.isFinite(saved) ? Math.max(0, saved) : 0
+  })
   const [mobileHeaderMaxLift, setMobileHeaderMaxLift] = useState(240)
 
   const availableVersions = useMemo(
@@ -830,7 +838,7 @@ export default function App() {
   useEffect(() => {
     function measureMobileHeaderLiftRange() {
       const headerHeight = headerRef.current?.offsetHeight ?? 0
-      const nextMaxLift = Math.max(0, headerHeight - 76)
+      const nextMaxLift = Math.max(0, headerHeight - 96)
       setMobileHeaderMaxLift(nextMaxLift)
       setMobileHeaderLift((current) => Math.min(current, nextMaxLift))
     }
@@ -840,6 +848,10 @@ export default function App() {
 
     return () => window.removeEventListener('resize', measureMobileHeaderLiftRange)
   }, [])
+
+  useEffect(() => {
+    window.localStorage.setItem(MOBILE_HEADER_LIFT_STORAGE_KEY, String(mobileHeaderLift))
+  }, [mobileHeaderLift])
 
   async function handleImport(event) {
     const files = Array.from(event.target.files ?? [])
@@ -1047,7 +1059,7 @@ export default function App() {
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 pb-10 pt-6 sm:px-6 lg:px-8">
         <header
           ref={headerRef}
-          style={{ '--mobile-header-lift': String(mobileHeaderLift) }}
+          style={{ '--mobile-header-lift': `${mobileHeaderLift}px` }}
           className="glass mobile-shiftable-header sticky top-3 z-20 rounded-3xl border border-slate-200/80 p-5 shadow-glow"
         >
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -1136,21 +1148,31 @@ export default function App() {
           </div>
         </header>
 
-        <div className="mobile-header-slider fixed right-1 top-1/2 z-30 -translate-y-1/2 lg:hidden">
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-300/80 bg-white/90 px-2 py-3 shadow-glow backdrop-blur">
+        <div className="mobile-header-slider fixed right-2 top-1/2 z-30 -translate-y-1/2 lg:hidden">
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-slate-300/80 bg-white/95 px-2 py-3 shadow-glow backdrop-blur">
             <span className="[writing-mode:vertical-rl] text-[10px] font-semibold tracking-[0.18em] text-slate-600">
               標題上移
             </span>
+            <div className="text-[11px] font-semibold text-sky-700">
+              {mobileHeaderLift}px
+            </div>
             <input
               type="range"
               min={0}
               max={mobileHeaderMaxLift}
-              step={2}
+              step={4}
               value={mobileHeaderLift}
               onChange={(event) => setMobileHeaderLift(Number(event.target.value))}
-              className="mobile-header-slider-input h-5 w-28 rotate-90 accent-sky-600"
+              className="mobile-header-slider-input h-28 w-5 accent-sky-600"
               aria-label="調整標題區上移高度"
             />
+            <button
+              type="button"
+              onClick={() => setMobileHeaderLift(0)}
+              className="rounded-full border border-slate-300 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-700"
+            >
+              重設
+            </button>
           </div>
         </div>
 

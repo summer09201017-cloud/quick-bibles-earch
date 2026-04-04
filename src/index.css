@@ -76,18 +76,27 @@ body {
 
 @media (max-width: 1023px) {
   .mobile-shiftable-header {
-    transform: translateY(calc(-1px * var(--mobile-header-lift, 0)));
-    transition: transform 0.16s ease;
-    will-change: transform;
+    top: calc(0.75rem - var(--mobile-header-lift, 0px));
+    transition: top 0.16s ease;
+    will-change: top;
   }
 
   .mobile-header-slider-input {
     -webkit-appearance: none;
     appearance: none;
     background: transparent;
+    writing-mode: vertical-lr;
+    orient: vertical;
+  }
+
+  @supports (-webkit-appearance: slider-vertical) {
+    .mobile-header-slider-input {
+      -webkit-appearance: slider-vertical;
+    }
   }
 
   .mobile-header-slider-input::-webkit-slider-runnable-track {
+    width: 6px;
     height: 6px;
     border-radius: 9999px;
     background: rgba(148, 163, 184, 0.55);
@@ -96,7 +105,7 @@ body {
   .mobile-header-slider-input::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    margin-top: -5px;
+    margin-left: -5px;
     width: 16px;
     height: 16px;
     border-radius: 9999px;
@@ -106,6 +115,7 @@ body {
   }
 
   .mobile-header-slider-input::-moz-range-track {
+    width: 6px;
     height: 6px;
     border-radius: 9999px;
     background: rgba(148, 163, 184, 0.55);
