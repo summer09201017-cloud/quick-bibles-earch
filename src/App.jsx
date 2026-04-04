@@ -496,6 +496,8 @@ export default function App() {
     return Number.isFinite(saved) ? Math.max(0, saved) : 0
   })
   const [mobileHeaderMaxLift, setMobileHeaderMaxLift] = useState(240)
+  const isMobileHeaderCollapsed =
+    mobileHeaderMaxLift > 0 && mobileHeaderLift >= Math.max(0, mobileHeaderMaxLift - 12)
 
   const availableVersions = useMemo(
     () => catalogState.map((item) => versionsById[item.id]).filter(Boolean),
@@ -1039,6 +1041,14 @@ export default function App() {
     )
   }
 
+  function expandMobileHeader() {
+    setMobileHeaderLift(0)
+  }
+
+  function collapseMobileHeader() {
+    setMobileHeaderLift(mobileHeaderMaxLift)
+  }
+
   function jumpToReaderFromResult(result) {
     const [bookNumber, chapter, verse] = result.key.split('-').map((value) => Number(value))
     setActiveView('reader')
@@ -1153,6 +1163,13 @@ export default function App() {
             <span className="[writing-mode:vertical-rl] text-[10px] font-semibold tracking-[0.18em] text-slate-600">
               標題上移
             </span>
+            <button
+              type="button"
+              onClick={isMobileHeaderCollapsed ? expandMobileHeader : collapseMobileHeader}
+              className="rounded-full border border-sky-300 bg-sky-50 px-2 py-1 text-[10px] font-semibold text-sky-700"
+            >
+              {isMobileHeaderCollapsed ? '展開' : '收合'}
+            </button>
             <div className="text-[11px] font-semibold text-sky-700">
               {mobileHeaderLift}px
             </div>
@@ -1168,7 +1185,7 @@ export default function App() {
             />
             <button
               type="button"
-              onClick={() => setMobileHeaderLift(0)}
+              onClick={expandMobileHeader}
               className="rounded-full border border-slate-300 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-700"
             >
               重設
