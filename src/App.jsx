@@ -261,7 +261,7 @@ function ReaderActionBar({ previousChapter, nextChapter, selectedCount, onCopy, 
         type="button"
         onClick={onCopy}
         disabled={selectedCount === 0}
-        className="rounded-2xl border border-sky-400/40 bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-200 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
+        className="rounded-2xl border border-red-400/40 bg-red-100 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
       >
         複製勾選經文{selectedCount > 0 ? ` (${selectedCount})` : ''}
       </button>
@@ -1054,15 +1054,16 @@ export default function App() {
 
   return (
     <div className="soft-grid min-h-screen bg-slate-50 text-slate-800">
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 pb-10 pt-6 sm:px-6 lg:px-8">
-        <header className="glass sticky top-3 z-20 rounded-3xl border border-slate-200/80 p-5 shadow-glow">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 max-w-3xl">
-              <div className="mb-3 inline-flex items-center rounded-full border border-yellow-400/25 bg-yellow-100 px-3 py-1 text-xs font-semibold tracking-[0.24em] text-yellow-700">
-                JSON + React + Vite + Tailwind + PWA
-              </div>
-              <h1 className="text-2xl font-bold tracking-tight text-blue-700 sm:text-3xl">
-                多譯本聖經關鍵字查詢
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-0 pb-10 pt-0 sm:px-6 sm:pt-6 lg:px-8">
+        <header
+          className={`glass sticky top-0 z-20 border border-slate-200/80 shadow-glow sm:top-3 sm:rounded-3xl ${
+            isHeaderCollapsed ? 'rounded-none px-4 py-3 sm:p-3' : 'rounded-none px-4 py-5 sm:p-5'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-base font-bold tracking-tight text-blue-700 sm:text-2xl">
+                多譯本關鍵字查詢
               </h1>
             </div>
 
@@ -1152,7 +1153,7 @@ export default function App() {
         >
           {activeView === 'search' ? (
             <aside className="space-y-6">
-              <section className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-glow">
+              <section className="border border-slate-200 bg-white/90 p-5 shadow-glow sm:rounded-3xl">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-lg font-bold text-slate-900">搜尋設定</h2>
@@ -1205,7 +1206,7 @@ export default function App() {
             {activeView === 'reader' ? (
               <section
                 id={READER_SECTION_ID}
-                className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-glow"
+                className="border border-slate-200 bg-white/90 p-5 shadow-glow sm:rounded-3xl"
               >
                 <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
                   <div>
@@ -1294,7 +1295,7 @@ export default function App() {
                         onNavigate={navigateChapter}
                       />
 
-                      <div className="space-y-3">
+                      <div className="-mx-5 space-y-3 sm:mx-0">
                         {readerChapterEntries.map((entry) => {
                           const isChecked = selectedVerseKeySet.has(entry.key)
                           const isFocusedVerse = entry.verse === readerSelection.verse
@@ -1303,7 +1304,7 @@ export default function App() {
                             <article
                               key={entry.key}
                               id={`reader-verse-${entry.key}`}
-                              className={`rounded-3xl border p-4 ${
+                              className={`overflow-hidden border px-5 py-4 sm:rounded-3xl sm:p-4 ${
                                 isFocusedVerse
                                   ? 'border-sky-400/40 bg-sky-500/10'
                                   : isChecked
@@ -1311,14 +1312,7 @@ export default function App() {
                                     : 'border-slate-200 bg-white/95'
                               }`}
                             >
-                              <div className="flex items-start gap-3">
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => toggleVerseSelection(entry.key)}
-                                  className="mt-1 h-5 w-5 rounded border-slate-300 bg-white text-sky-500 focus:ring-2 focus:ring-sky-400/60"
-                                />
-
+                              <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                   <div className="flex flex-wrap items-center gap-3">
                                     <span className="inline-flex min-w-10 justify-center rounded-full border border-slate-300 bg-white px-3 py-1 text-sm font-semibold text-slate-900">
@@ -1337,7 +1331,7 @@ export default function App() {
                                       return (
                                         <div
                                           key={`${entry.key}-${line.versionId}`}
-                                          className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                                          className="-mx-5 border-x-0 border-y border-slate-200 bg-slate-50 px-5 py-4 sm:mx-0 sm:rounded-2xl sm:border sm:p-4"
                                         >
                                           <div className="mb-3 flex items-center gap-3">
                                             <span
@@ -1354,6 +1348,13 @@ export default function App() {
                                     })}
                                   </div>
                                 </div>
+
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleVerseSelection(entry.key)}
+                                  className="mt-1 h-5 w-5 shrink-0 rounded border-slate-300 bg-white text-sky-500 focus:ring-2 focus:ring-sky-400/60"
+                                />
                               </div>
                             </article>
                           )
@@ -1380,13 +1381,13 @@ export default function App() {
             ) : null}
 
             {activeView === 'search' ? (
-              <section className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-glow">
+              <section className="border border-slate-200 bg-white/90 p-5 shadow-glow sm:rounded-3xl">
                 <div className="flex flex-col gap-3 border-b border-slate-200 pb-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                       <h2 className="text-lg font-bold text-slate-900">搜尋結果</h2>
                       <p className="mt-1 text-sm text-slate-600">
-                        結果依照聖經書卷順序排列，點選經節名稱可直接跳到閱讀頁對應章節。
+                        結果依照聖經書卷順序排列，點選經節名稱或經文內容可直接跳到閱讀頁對應章節。
                       </p>
                     </div>
                     <div className="text-sm text-slate-600">
@@ -1407,9 +1408,9 @@ export default function App() {
                         )
                       }
                       disabled={selectedSearchEntries.length === 0}
-                      className="rounded-2xl border border-sky-400/40 bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-200 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
+                      className="rounded-2xl border border-red-400/40 bg-red-100 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
                     >
-                      複製勾選結果{selectedSearchEntries.length > 0 ? ` (${selectedSearchEntries.length})` : ''}
+                      複製勾選經文{selectedSearchEntries.length > 0 ? ` (${selectedSearchEntries.length})` : ''}
                     </button>
                     <div className="text-sm text-slate-500">勾選核取方塊後，可一次複製多節經文</div>
                   </div>
@@ -1442,14 +1443,14 @@ export default function App() {
                       目前找不到符合條件的經文，請試試其他關鍵字或改用片語搜尋。
                     </div>
                   ) : (
-                    <div className="scrollbar-thin space-y-4">
+                    <div className="scrollbar-thin -mx-5 space-y-4 sm:mx-0">
                       {combinedResults.map((result) => {
                         const isChecked = selectedVerseKeySet.has(result.key)
 
                         return (
                           <article
                             key={result.key}
-                            className={`rounded-3xl border p-5 ${
+                            className={`overflow-hidden border px-5 py-5 sm:rounded-3xl sm:p-5 ${
                               isChecked
                                 ? 'border-amber-300/30 bg-amber-500/10'
                                 : 'border-slate-200 bg-white/95'
@@ -1487,7 +1488,7 @@ export default function App() {
                                   return (
                                     <div
                                       key={`${result.key}-${line.versionId}`}
-                                      className={`rounded-2xl border p-4 ${
+                                      className={`-mx-5 border-x-0 border-y px-5 py-4 sm:mx-0 sm:rounded-2xl sm:border sm:p-4 ${
                                         line.matched
                                           ? 'border-sky-400/30 bg-sky-500/10'
                                           : 'border-slate-200 bg-slate-50'
@@ -1500,9 +1501,15 @@ export default function App() {
                                           {version.short}
                                         </span>
                                       </div>
-                                      <p className="m-0 text-sm leading-7 text-slate-900 sm:text-[15px]">
-                                        {highlightText(line.text, query, exactPhrase)}
-                                      </p>
+                                      <button
+                                        type="button"
+                                        onClick={() => jumpToReaderFromResult(result)}
+                                        className="w-full text-left"
+                                      >
+                                        <p className="m-0 text-sm leading-7 text-slate-900 transition hover:text-sky-800 sm:text-[15px]">
+                                          {highlightText(line.text, query, exactPhrase)}
+                                        </p>
+                                      </button>
                                     </div>
                                   )
                                 })}
@@ -1523,9 +1530,9 @@ export default function App() {
                             )
                           }
                           disabled={selectedSearchEntries.length === 0}
-                          className="rounded-2xl border border-sky-400/40 bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-200 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
+                          className="rounded-2xl border border-red-400/40 bg-red-100 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
                         >
-                          複製勾選結果{selectedSearchEntries.length > 0 ? ` (${selectedSearchEntries.length})` : ''}
+                          複製勾選經文{selectedSearchEntries.length > 0 ? ` (${selectedSearchEntries.length})` : ''}
                         </button>
                       </div>
                     </div>
