@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   DEFAULT_SELECTED_VERSIONS,
-  DEMO_SCHEMA_URL,
   VERSION_CATALOG,
   VERSION_LOOKUP
 } from './lib/constants'
@@ -18,7 +17,9 @@ import { buildReferenceLabel, buildVerseKey, getHighlightRegex } from './lib/sea
 
 const BOOK_LOOKUP = Object.fromEntries(BOOKS.map((book) => [book.number, book]))
 const READER_SECTION_ID = 'chapter-reader'
-const MOBILE_HEADER_LIFT_STORAGE_KEY = 'mobile-header-lift'
+const MOBILE_HEADER_COLLAPSE_STORAGE_KEY = 'mobile-header-collapsed'
+const VISIBLE_VERSION_IDS = ['cuv', 'lzz', 'bbe', 'web', 'bsb', 'kjv', 'asv']
+const VISIBLE_VERSION_SET = new Set(VISIBLE_VERSION_IDS)
 
 function StatCard({ label, value, hint }) {
   return (
@@ -88,7 +89,7 @@ function highlightText(text, query, exactPhrase) {
 }
 
 function getBookLabel(bookNumber, fallback = '') {
-  return fallback || BOOK_LOOKUP[Number(bookNumber)]?.chinese || `第 ${bookNumber} 卷`
+  return fallback || BOOK_LOOKUP[Number(bookNumber)]?.chinese || `書卷 ${bookNumber}`
 }
 
 function buildReaderCatalog(version) {
@@ -237,7 +238,7 @@ function ReaderActionBar({ previousChapter, nextChapter, selectedCount, onCopy, 
             上一章：{previousChapter.bookLabel} {previousChapter.chapter}
           </a>
         ) : (
-          <span className="text-slate-600">已經是第一章</span>
+          <span className="text-slate-600">沒有上一章</span>
         )}
 
         {nextChapter ? (
@@ -252,7 +253,7 @@ function ReaderActionBar({ previousChapter, nextChapter, selectedCount, onCopy, 
             下一章：{nextChapter.bookLabel} {nextChapter.chapter}
           </a>
         ) : (
-          <span className="text-slate-600">已經是最後一章</span>
+          <span className="text-slate-600">沒有下一章</span>
         )}
       </div>
 
@@ -446,15 +447,18 @@ function useInstallPrompt() {
 }
 
 export default function App() {
-  const headerRef = useRef(null)
   const searchWorkerRef = useRef(null)
   const builtInVersionsRef = useRef({})
   const requestIdRef = useRef(0)
   const { canInstall, triggerInstall } = useInstallPrompt()
 
-  const [catalogState, setCatalogState] = useState(VERSION_CATALOG)
+  const [catalogState, setCatalogState] = useState(
+    VERSION_CATALOG.filter((item) => VISIBLE_VERSION_SET.has(item.id))
+  )
   const [versionsById, setVersionsById] = useState({})
-  const [selectedVersions, setSelectedVersions] = useState(DEFAULT_SELECTED_VERSIONS)
+  const [selectedVersions, setSelectedVersions] = useState(
+    DEFAULT_SELECTED_VERSIONS.filter((item) => VISIBLE_VERSION_SET.has(item))
+  )
   const [query, setQuery] = useState('')
   const [exactPhrase, setExactPhrase] = useState(false)
   const [limit, setLimit] = useState(150)
@@ -487,17 +491,18 @@ export default function App() {
     key: '',
     token: 0
   })
-  const [mobileHeaderLift, setMobileHeaderLift] = useState(() => {
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(() => {
     if (typeof window === 'undefined') {
-      return 0
+      return false
     }
 
-    const saved = Number(window.localStorage.getItem(MOBILE_HEADER_LIFT_STORAGE_KEY) ?? '0')
-    return Number.isFinite(saved) ? Math.max(0, saved) : 0
+    const saved = window.localStorage.getItem(MOBILE_HEADER_COLLAPSE_STORAGE_KEY)
+    if (saved !== null) {
+      return saved === '1'
+    }
+
+    return window.matchMedia('(max-width: 1023px)').matches
   })
-  const [mobileHeaderMaxLift, setMobileHeaderMaxLift] = useState(240)
-  const isMobileHeaderCollapsed =
-    mobileHeaderMaxLift > 0 && mobileHeaderLift >= Math.max(0, mobileHeaderMaxLift - 12)
 
   const availableVersions = useMemo(
     () => catalogState.map((item) => versionsById[item.id]).filter(Boolean),
@@ -616,7 +621,7 @@ export default function App() {
       if (payload.type === 'versions-ready') {
         setWorkerStats(payload.stats)
         setAppStatus(
-          `已同步 ${payload.stats.versionCount} 個譯本，共 ${payload.stats.verseCount.toLocaleString()} 節`
+          `已載入 ${payload.stats.versionCount} 個譯本，索引 ${payload.stats.verseCount.toLocaleString()} 節`
         )
       }
 
@@ -637,16 +642,18 @@ export default function App() {
       setIsLoadingApp(true)
 
       try {
-        setAppStatus('讀取譯本目錄...')
+        setAppStatus('正在載入目錄資料...')
         const catalogResponse = await fetch('/data/catalog.json')
         const catalogJson = await catalogResponse.json()
-        const catalogEntries = catalogJson.versions.map((entry) => ({
-          ...VERSION_LOOKUP[entry.id],
-          ...entry
-        }))
+        const catalogEntries = catalogJson.versions
+          .filter((entry) => VISIBLE_VERSION_SET.has(entry.id))
+          .map((entry) => ({
+            ...VERSION_LOOKUP[entry.id],
+            ...entry
+          }))
         setCatalogState(catalogEntries)
 
-        setAppStatus('載入內建 JSON...')
+        setAppStatus('正在下載內建 JSON...')
         const builtInResponses = await Promise.all(
           catalogEntries.map(async (entry) => {
             const response = await fetch(entry.file)
@@ -668,7 +675,7 @@ export default function App() {
 
         builtInVersionsRef.current = Object.fromEntries(builtInResponses)
 
-        setAppStatus('讀取本機快取...')
+        setAppStatus('正在載入本機資料...')
         const storedVersions = await getAllStoredVersions()
         const storedMap = Object.fromEntries(storedVersions.map((item) => [item.id, item]))
 
@@ -677,7 +684,7 @@ export default function App() {
         )
       } catch (error) {
         console.error(error)
-        setAppStatus('載入失敗，請重新整理或檢查 JSON 格式')
+        setAppStatus('載入失敗，請確認 public/data 內的 JSON 檔案')
       } finally {
         setIsLoadingApp(false)
       }
@@ -786,7 +793,7 @@ export default function App() {
           requestState: 'error',
           totalHits: 0,
           results: [],
-          error: error.message ?? 'API.Bible 查詢失敗'
+          error: error.message ?? 'API.Bible 連線失敗'
         })
       }
     }, 220)
@@ -838,22 +845,11 @@ export default function App() {
   }, [readerChapterEntries, readerJumpTarget])
 
   useEffect(() => {
-    function measureMobileHeaderLiftRange() {
-      const headerHeight = headerRef.current?.offsetHeight ?? 0
-      const nextMaxLift = Math.max(0, headerHeight - 96)
-      setMobileHeaderMaxLift(nextMaxLift)
-      setMobileHeaderLift((current) => Math.min(current, nextMaxLift))
-    }
-
-    measureMobileHeaderLiftRange()
-    window.addEventListener('resize', measureMobileHeaderLiftRange)
-
-    return () => window.removeEventListener('resize', measureMobileHeaderLiftRange)
-  }, [])
-
-  useEffect(() => {
-    window.localStorage.setItem(MOBILE_HEADER_LIFT_STORAGE_KEY, String(mobileHeaderLift))
-  }, [mobileHeaderLift])
+    window.localStorage.setItem(
+      MOBILE_HEADER_COLLAPSE_STORAGE_KEY,
+      isHeaderCollapsed ? '1' : '0'
+    )
+  }, [isHeaderCollapsed])
 
   async function handleImport(event) {
     const files = Array.from(event.target.files ?? [])
@@ -888,7 +884,7 @@ export default function App() {
       })
 
       setImportMessage(
-        `完成匯入 ${imported.length} 個檔案：${imported
+        `已匯入 ${imported.length} 個譯本：${imported
           .map((item) => item.translation.short)
           .join('、')}`
       )
@@ -924,7 +920,7 @@ export default function App() {
       }
     }))
 
-    setImportMessage(`${VERSION_LOOKUP[versionId].short} 已恢復成內建版本`)
+    setImportMessage(`${VERSION_LOOKUP[versionId].short} 已恢復為內建版本`)
   }
 
   function toggleVersion(versionId) {
@@ -972,10 +968,10 @@ export default function App() {
 
     try {
       await copyTextToClipboard(formatEntriesForCopy(entries))
-      setCopyMessage(`${successLabel}，共複製 ${entries.length} 節`)
+      setCopyMessage(`${successLabel}，已複製 ${entries.length} 節`)
     } catch (error) {
       console.error(error)
-      setCopyMessage('複製失敗，請再試一次')
+      setCopyMessage('複製失敗，請稍後再試')
     }
   }
 
@@ -1041,14 +1037,6 @@ export default function App() {
     )
   }
 
-  function expandMobileHeader() {
-    setMobileHeaderLift(0)
-  }
-
-  function collapseMobileHeader() {
-    setMobileHeaderLift(mobileHeaderMaxLift)
-  }
-
   function jumpToReaderFromResult(result) {
     const [bookNumber, chapter, verse] = result.key.split('-').map((value) => Number(value))
     setActiveView('reader')
@@ -1067,72 +1055,71 @@ export default function App() {
   return (
     <div className="soft-grid min-h-screen bg-slate-50 text-slate-800">
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 pb-10 pt-6 sm:px-6 lg:px-8">
-        <header
-          ref={headerRef}
-          style={{ '--mobile-header-lift': `${mobileHeaderLift}px` }}
-          className="glass mobile-shiftable-header sticky top-3 z-20 rounded-3xl border border-slate-200/80 p-5 shadow-glow"
-        >
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
+        <header className="glass sticky top-3 z-20 rounded-3xl border border-slate-200/80 p-5 shadow-glow">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 max-w-3xl">
               <div className="mb-3 inline-flex items-center rounded-full border border-yellow-400/25 bg-yellow-100 px-3 py-1 text-xs font-semibold tracking-[0.24em] text-yellow-700">
                 JSON + React + Vite + Tailwind + PWA
               </div>
-              <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+              <h1 className="text-2xl font-bold tracking-tight text-blue-700 sm:text-3xl">
                 多譯本聖經關鍵字查詢
               </h1>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-700 sm:text-base">
-                以本機 JSON 為核心，支援 NIV、ESV、和合本、新譯本、呂振中譯本。搜尋在 Web
-                Worker 裡進行，手機可安裝成 App，電腦也能像桌面程式一樣用。
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsHeaderCollapsed((current) => !current)}
+              className="shrink-0 rounded-2xl border border-slate-300 bg-white/90 px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:border-slate-400"
+            >
+              {isHeaderCollapsed ? '展開標題' : '收合標題'}
+            </button>
+          </div>
+
+          {!isHeaderCollapsed ? (
+            <>
+              <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-700 sm:text-base">
+                以本機 JSON 為核心，保留和合本、呂振中、BBE、WEB 等常用譯本，搜尋由 Web
+                Worker 負責，手機與電腦都能快速閱讀與查詢。
               </p>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-3">
               {canInstall ? (
-                <button
-                  type="button"
-                  onClick={triggerInstall}
-                  className="rounded-2xl border border-sky-400/40 bg-sky-100 px-4 py-3 text-sm font-semibold text-sky-700 transition hover:bg-sky-200"
-                >
-                  安裝到手機 / 電腦
-                </button>
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={triggerInstall}
+                    className="rounded-2xl border border-sky-400/40 bg-sky-100 px-4 py-3 text-sm font-semibold text-sky-700 transition hover:bg-sky-200"
+                  >
+                    安裝到手機 / 電腦
+                  </button>
+                </div>
               ) : null}
-              <a
-                href={DEMO_SCHEMA_URL}
-                className="rounded-2xl border border-slate-300 bg-white/90 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:border-slate-400"
-              >
-                查看 JSON 範例
-              </a>
-            </div>
-          </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              label="譯本"
-              value={`${loadedVersionCount} / ${catalogState.length}`}
-              hint="已載入可搜尋 JSON"
-            />
-            <StatCard
-              label="節數"
-              value={workerStats.verseCount.toLocaleString()}
-              hint="目前同步到搜尋 Worker"
-            />
-            <StatCard
-              label="搜尋"
-              value={mergedResults.length.toLocaleString()}
-              hint={query.trim() ? '符合條件的經文數' : '輸入關鍵字後即時查詢'}
-            />
-            <StatCard
-              label="狀態"
-              value={searchState.elapsedMs ? `${searchState.elapsedMs} ms` : '待命'}
-              hint={
-                liveNivState.requestState === 'loading'
-                  ? '本機搜尋完成，NIV Live API 查詢中...'
-                  : appStatus
-              }
-            />
-          </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <StatCard
+                  label="譯本"
+                  value={`${loadedVersionCount} / ${catalogState.length}`}
+                  hint="已載入可搜尋的本機 JSON"
+                />
+                <StatCard
+                  label="經節"
+                  value={workerStats.verseCount.toLocaleString()}
+                  hint="已建立搜尋索引"
+                />
+                <StatCard
+                  label="結果"
+                  value={mergedResults.length.toLocaleString()}
+                  hint={query.trim() ? '目前查詢的命中節數' : '輸入關鍵字後立即開始搜尋'}
+                />
+                <StatCard
+                  label="速度"
+                  value={searchState.elapsedMs ? `${searchState.elapsedMs} ms` : '待命中'}
+                  hint={appStatus}
+                />
+              </div>
+            </>
+          ) : null}
 
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className={`${isHeaderCollapsed ? 'mt-4' : 'mt-5'} flex flex-wrap gap-3`}>
             <button
               type="button"
               onClick={() => setActiveView('reader')}
@@ -1158,320 +1145,55 @@ export default function App() {
           </div>
         </header>
 
-        <div className="mobile-header-slider fixed right-2 top-1/2 z-30 -translate-y-1/2 lg:hidden">
-          <div className="flex flex-col items-center gap-3 rounded-2xl border border-slate-300/80 bg-white/95 px-2 py-3 shadow-glow backdrop-blur">
-            <span className="[writing-mode:vertical-rl] text-[10px] font-semibold tracking-[0.18em] text-slate-600">
-              標題上移
-            </span>
-            <button
-              type="button"
-              onClick={isMobileHeaderCollapsed ? expandMobileHeader : collapseMobileHeader}
-              className="rounded-full border border-sky-300 bg-sky-50 px-2 py-1 text-[10px] font-semibold text-sky-700"
-            >
-              {isMobileHeaderCollapsed ? '展開' : '收合'}
-            </button>
-            <div className="text-[11px] font-semibold text-sky-700">
-              {mobileHeaderLift}px
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={mobileHeaderMaxLift}
-              step={4}
-              value={mobileHeaderLift}
-              onChange={(event) => setMobileHeaderLift(Number(event.target.value))}
-              className="mobile-header-slider-input h-28 w-5 accent-sky-600"
-              aria-label="調整標題區上移高度"
-            />
-            <button
-              type="button"
-              onClick={expandMobileHeader}
-              className="rounded-full border border-slate-300 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-700"
-            >
-              重設
-            </button>
-          </div>
-        </div>
-
-        <main className="mt-6 grid flex-1 gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-          <aside className="space-y-6">
-            {activeView === 'search' ? (
+        <main
+          className={`mt-6 grid flex-1 gap-6 ${
+            activeView === 'search' ? 'lg:grid-cols-[360px_minmax(0,1fr)]' : 'lg:grid-cols-[minmax(0,1fr)]'
+          }`}
+        >
+          {activeView === 'search' ? (
+            <aside className="space-y-6">
               <section className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-glow">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900">搜尋設定</h2>
-                  <p className="mt-1 text-sm text-slate-600">
-                    關鍵字輸入後 100ms 內就會丟進 Worker 搜尋。
-                  </p>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">搜尋設定</h2>
+                    <p className="mt-1 text-sm text-slate-600">
+                      輸入關鍵字後會用本機索引快速搜尋，結果依照聖經書卷順序排列。
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <label className="mt-5 block">
-                <span className="mb-2 block text-sm font-medium text-slate-800">關鍵字 / 片語</span>
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="例如：grace、恩典、信心、God so loved"
-                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-900 outline-none transition placeholder:text-slate-500 focus:border-sky-400/70"
-                />
-              </label>
-
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Chip active={exactPhrase} onClick={() => setExactPhrase((current) => !current)}>
-                  {exactPhrase ? '精準片語模式' : '多關鍵字 AND 模式'}
-                </Chip>
-                <label className="flex items-center gap-2 rounded-full border border-slate-300 bg-slate-50/90 px-4 py-2 text-sm text-slate-700">
-                  <span>上限</span>
-                  <select
-                    value={limit}
-                    onChange={(event) => setLimit(Number(event.target.value))}
-                    className="bg-transparent text-slate-900 outline-none"
-                  >
-                    {[50, 150, 300, 500].map((value) => (
-                      <option key={value} value={value} className="bg-white">
-                        {value}
-                      </option>
-                    ))}
-                  </select>
+                <label className="mt-5 block">
+                  <span className="mb-2 block text-sm font-medium text-slate-800">關鍵字 / 片語</span>
+                  <input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="例如：grace、與神同行、God so loved"
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-900 outline-none transition placeholder:text-slate-500 focus:border-sky-400/70"
+                  />
                 </label>
-              </div>
-              </section>
-            ) : null}
 
-            <section className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-glow">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900">譯本選擇</h2>
-                  <p className="mt-1 text-sm text-slate-600">
-                    搜尋命中後會平行顯示已選譯本，方便直接對照。
-                  </p>
-                </div>
-                <div className="text-xs text-slate-500">{selectedVersions.length} 個已選</div>
-              </div>
-
-              <div className="mt-4 space-y-3">
-                {catalogState.map((version) => {
-                  const versionData = versionsById[version.id]
-                  const isSelected = selectedVersions.includes(version.id)
-                  const isLastSelected = isSelected && selectedVersions.length === 1
-                  const isLoaded = (versionData?.verses?.length ?? 0) > 0
-                  const usesLiveApi =
-                    version.id === 'niv' &&
-                    !isLoaded &&
-                    Boolean(
-                      apiBibleConfig.enabled &&
-                        apiBibleConfig.apiKey.trim() &&
-                        apiBibleConfig.bibleId.trim()
-                    )
-
-                  return (
-                    <label
-                      key={version.id}
-                      className={`w-full rounded-2xl border p-4 text-left transition ${
-                        isSelected
-                          ? 'border-sky-400/40 bg-sky-500/10'
-                          : 'border-slate-200 bg-white/95 hover:border-slate-300'
-                      } ${isLastSelected ? 'cursor-default' : 'cursor-pointer'}`}
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Chip active={exactPhrase} onClick={() => setExactPhrase((current) => !current)}>
+                    {exactPhrase ? '片語完全比對' : '多關鍵字 AND 搜尋'}
+                  </Chip>
+                  <label className="flex items-center gap-2 rounded-full border border-slate-300 bg-slate-50/90 px-4 py-2 text-sm text-slate-700">
+                    <span>上限</span>
+                    <select
+                      value={limit}
+                      onChange={(event) => setLimit(Number(event.target.value))}
+                      className="bg-transparent text-slate-900 outline-none"
                     >
-                      <div className="flex items-start gap-4">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleVersion(version.id)}
-                          disabled={isLastSelected}
-                          className="mt-1 h-5 w-5 rounded border-slate-300 bg-white text-sky-500 focus:ring-2 focus:ring-sky-400/60 disabled:cursor-not-allowed disabled:opacity-50"
-                        />
-
-                        <div className="flex flex-1 items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span
-                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${version.badge}`}
-                              >
-                                {version.short}
-                              </span>
-                              <span className="text-sm text-slate-800">{version.name}</span>
-                            </div>
-
-                            <div className="mt-2 text-xs text-slate-600">
-                              {isLoaded
-                                ? `${versionData.verses.length.toLocaleString()} 節`
-                                : usesLiveApi
-                                  ? '改走 NIV Live API'
-                                  : '尚未匯入實際經文 JSON'}
-                            </div>
-
-                            {isLastSelected ? (
-                              <div className="mt-2 text-xs text-amber-700">至少保留 1 個譯本</div>
-                            ) : null}
-                          </div>
-
-                          <div className="text-right">
-                            <div
-                              className={`text-xs font-semibold ${
-                                versionData?.source === 'indexeddb'
-                                  ? 'text-emerald-700'
-                                  : usesLiveApi
-                                    ? 'text-sky-600'
-                                    : 'text-slate-600'
-                              }`}
-                            >
-                              {versionData?.source === 'indexeddb'
-                                ? '本機快取'
-                                : usesLiveApi
-                                  ? 'Live API'
-                                  : '內建佔位'}
-                            </div>
-                            <div className="mt-2 text-xs text-slate-500">{version.language}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </label>
-                  )
-                })}
-              </div>
-            </section>
-
-            <section className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-glow">
-              <h2 className="text-lg font-bold text-slate-900">JSON 匯入</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                直接匯入你的 和合本 / 呂振中 / BBE / WEB / BSB / OEB / KJV / ASV / NIV / ESV / 新譯本 JSON。匯入後會存到瀏覽器本機，之後離線也能搜尋。
-              </p>
-
-              <label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50/90 px-4 py-6 text-center transition hover:border-sky-400/40 hover:bg-sky-500/5">
-                <span className="text-sm font-semibold text-slate-900">選擇 JSON 檔案</span>
-                <span className="mt-1 text-xs text-slate-500">
-                  可一次選多個檔案，translation.id 需為 cuv / lzz / bbe / web / bsb / oeb / kjv / asv / niv / esv / cnv
-                </span>
-                <input
-                  type="file"
-                  accept=".json,application/json"
-                  multiple
-                  onChange={handleImport}
-                  className="hidden"
-                />
-              </label>
-
-              {importMessage ? (
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/90 px-4 py-3 text-sm text-slate-700">
-                  {importMessage}
+                      {[50, 150, 300, 500].map((value) => (
+                        <option key={value} value={value} className="bg-white">
+                          {value}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
-              ) : null}
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {catalogState.map((version) => (
-                  <button
-                    key={version.id}
-                    type="button"
-                    onClick={() => resetVersion(version.id)}
-                    className="rounded-full border border-slate-300 px-3 py-1.5 text-xs text-slate-700 transition hover:border-slate-400"
-                  >
-                    重設 {version.short}
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-glow">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900">NIV Live API</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    不把 NIV 全文打包進站，改用你自己的 API.Bible 權限即時查詢。
-                    金鑰只會存到目前瀏覽器，不會寫進專案檔案。
-                  </p>
-                </div>
-                <Chip
-                  active={Boolean(apiBibleConfig.enabled)}
-                  onClick={() =>
-                    setApiBibleConfig((current) => ({
-                      ...current,
-                      enabled: !current.enabled
-                    }))
-                  }
-                >
-                  {apiBibleConfig.enabled ? '已啟用' : '未啟用'}
-                </Chip>
-              </div>
-
-              <div className="mt-4 space-y-3">
-                <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-slate-800">API key</span>
-                  <input
-                    type="password"
-                    value={apiBibleConfig.apiKey}
-                    onChange={(event) =>
-                      setApiBibleConfig((current) => ({
-                        ...current,
-                        apiKey: event.target.value
-                      }))
-                    }
-                    placeholder="貼上你的 API.Bible api-key"
-                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-500 focus:border-sky-400/70"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-slate-800">Bible ID</span>
-                  <input
-                    value={apiBibleConfig.bibleId}
-                    onChange={(event) =>
-                      setApiBibleConfig((current) => ({
-                        ...current,
-                        bibleId: event.target.value
-                      }))
-                    }
-                    placeholder="例如你的 NIV bibleId"
-                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-500 focus:border-sky-400/70"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-slate-800">顯示名稱</span>
-                  <input
-                    value={apiBibleConfig.label}
-                    onChange={(event) =>
-                      setApiBibleConfig((current) => ({
-                        ...current,
-                        label: event.target.value
-                      }))
-                    }
-                    placeholder="NIV Live"
-                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-500 focus:border-sky-400/70"
-                  />
-                </label>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={persistApiBibleConfig}
-                  className="rounded-2xl border border-sky-400/40 bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-200"
-                >
-                  儲存本機設定
-                </button>
-                <button
-                  type="button"
-                  onClick={resetApiBibleConfig}
-                  className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:border-slate-400"
-                >
-                  清除設定
-                </button>
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/90 px-4 py-3 text-xs leading-6 text-slate-600">
-                {hasLocalNiv
-                  ? '目前你已經有本機 NIV JSON，Live API 會被本機資料優先取代。'
-                  : '啟用後，只有在你勾選 NIV 且本機沒有 NIV JSON 時，才會改走 API.Bible。'}
-              </div>
-
-              {liveNivState.error ? (
-                <div className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-700">
-                  {liveNivState.error}
-                </div>
-              ) : null}
-            </section>
-          </aside>
+              </section>
+            </aside>
+          ) : null}
 
           <div className="space-y-6">
             {copyMessage ? (
@@ -1485,285 +1207,257 @@ export default function App() {
                 id={READER_SECTION_ID}
                 className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-glow"
               >
-              <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900">經文閱讀</h2>
-                  <p className="mt-1 text-sm text-slate-600">
-                    可切換書卷、章、節，並勾選要複製的經節。
-                  </p>
-                </div>
-                <div className="text-sm text-slate-600">
-                  {currentReaderChapter
-                    ? `${currentReaderChapter.bookLabel} ${currentReaderChapter.chapter} 章`
-                    : '尚無可閱讀章節'}
-                </div>
-              </div>
-
-              <div className="mt-5">
-                {isLoadingApp ? (
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
-                    系統初始化中，正在整理閱讀索引...
-                  </div>
-                ) : noLoadedData ? (
-                  <div className="rounded-3xl border border-amber-400/20 bg-amber-400/10 px-5 py-10 text-center">
-                    <div className="text-lg font-semibold text-amber-700">目前沒有可閱讀的本機經文資料</div>
-                    <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-amber-700">
-                      匯入合法授權的 JSON 後，就能使用章節閱讀、上一章 / 下一章與勾選複製功能。
+                <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">經文閱讀</h2>
+                    <p className="mt-1 text-sm text-slate-600">
+                      選擇書卷與章節後可對照閱讀，勾選核取方塊可複製指定經節。
                     </p>
                   </div>
-                ) : !currentReaderChapter ? (
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
-                    找不到可用章節，請先勾選至少一個有本機 JSON 的譯本。
+                  <div className="text-sm text-slate-600">
+                    {currentReaderChapter
+                      ? `${currentReaderChapter.bookLabel} ${currentReaderChapter.chapter} 章`
+                      : '請先選擇章節'}
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <label className="block">
-                        <span className="mb-2 block text-sm font-medium text-slate-800">書卷</span>
-                        <select
-                          value={readerSelection.bookNumber ?? ''}
-                          onChange={handleReaderBookChange}
-                          className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400/70"
-                        >
-                          {readerCatalog.books.map((book) => (
-                            <option key={book.bookNumber} value={book.bookNumber} className="bg-white">
-                              {book.bookLabel}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                </div>
 
-                      <label className="block">
-                        <span className="mb-2 block text-sm font-medium text-slate-800">章</span>
-                        <select
-                          value={readerSelection.chapter ?? ''}
-                          onChange={handleReaderChapterChange}
-                          className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400/70"
-                        >
-                          {currentReaderBook?.chapters.map((chapter) => (
-                            <option key={chapter.key} value={chapter.chapter} className="bg-white">
-                              第 {chapter.chapter} 章
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label className="block">
-                        <span className="mb-2 block text-sm font-medium text-slate-800">節</span>
-                        <select
-                          value={readerSelection.verse ?? ''}
-                          onChange={handleReaderVerseChange}
-                          className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400/70"
-                        >
-                          {currentReaderVerseOptions.map((verse) => (
-                            <option key={verse.key} value={verse.verse} className="bg-white">
-                              第 {verse.verse} 節
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                <div className="mt-5">
+                  {isLoadingApp ? (
+                    <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
+                      正在載入本機譯本與搜尋索引...
                     </div>
-
-                    {readerUnavailableVersionIds.length > 0 ? (
-                      <div className="rounded-2xl border border-sky-400/20 bg-sky-500/10 px-4 py-3 text-sm leading-6 text-sky-700">
-                        閱讀器目前只顯示本機 JSON 譯本；以下勾選的版本暫時不會出現在整章閱讀：
-                        {readerUnavailableVersionIds
-                          .map((id) => VERSION_LOOKUP[id]?.short ?? id)
-                          .join('、')}
-                      </div>
-                    ) : null}
-
-                    <ReaderActionBar
-                      previousChapter={previousReaderChapter}
-                      nextChapter={nextReaderChapter}
-                      selectedCount={selectedReaderEntries.length}
-                      onCopy={() =>
-                        copyEntries(
-                          selectedReaderEntries,
-                          '請先在經文閱讀區勾選要複製的經節',
-                          '本章勾選經文已複製'
-                        )
-                      }
-                      onNavigate={navigateChapter}
-                    />
-
-                    <div className="space-y-3">
-                      {readerChapterEntries.map((entry) => {
-                        const isChecked = selectedVerseKeySet.has(entry.key)
-                        const isFocusedVerse = entry.verse === readerSelection.verse
-
-                        return (
-                          <article
-                            key={entry.key}
-                            id={`reader-verse-${entry.key}`}
-                            className={`rounded-3xl border p-4 ${
-                              isFocusedVerse
-                                ? 'border-sky-400/40 bg-sky-500/10'
-                                : isChecked
-                                  ? 'border-amber-300/30 bg-amber-500/10'
-                                  : 'border-slate-200 bg-white/95'
-                            }`}
+                  ) : noLoadedData ? (
+                    <div className="rounded-3xl border border-amber-400/20 bg-amber-400/10 px-5 py-10 text-center">
+                      <div className="text-lg font-semibold text-amber-700">目前沒有可用的本機譯本</div>
+                      <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-amber-700">
+                        請先確認 `public/data/bibles` 內有合法 JSON 檔，系統載入後就能開始閱讀與搜尋。
+                      </p>
+                    </div>
+                  ) : !currentReaderChapter ? (
+                    <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
+                      請先選擇書卷和章節，閱讀器就會顯示對應內容。
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid gap-3 md:grid-cols-2 md:pl-6">
+                        <label className="block">
+                          <span className="mb-2 block text-sm font-medium text-slate-800">書卷</span>
+                          <select
+                            value={readerSelection.bookNumber ?? ''}
+                            onChange={handleReaderBookChange}
+                            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400/70"
                           >
-                            <div className="flex items-start gap-3">
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => toggleVerseSelection(entry.key)}
-                                className="mt-1 h-5 w-5 rounded border-slate-300 bg-white text-sky-500 focus:ring-2 focus:ring-sky-400/60"
-                              />
+                            {readerCatalog.books.map((book) => (
+                              <option key={book.bookNumber} value={book.bookNumber} className="bg-white">
+                                {book.bookLabel}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
 
-                              <div className="min-w-0 flex-1">
-                                <div className="flex flex-wrap items-center gap-3">
-                                  <span className="inline-flex min-w-10 justify-center rounded-full border border-slate-300 bg-white px-3 py-1 text-sm font-semibold text-slate-900">
-                                    {entry.verse}
-                                  </span>
-                                  <span className="text-sm font-medium text-green-700">{entry.referenceLabel}</span>
-                                </div>
+                        <label className="block">
+                          <span className="mb-2 block text-sm font-medium text-slate-800">章</span>
+                          <select
+                            value={readerSelection.chapter ?? ''}
+                            onChange={handleReaderChapterChange}
+                            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400/70"
+                          >
+                            {currentReaderBook?.chapters.map((chapter) => (
+                              <option key={chapter.key} value={chapter.chapter} className="bg-white">
+                                第 {chapter.chapter} 章
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
 
-                                <div className="mt-3 grid gap-3 xl:grid-cols-2">
-                                  {entry.lines.map((line) => {
-                                    const version = VERSION_LOOKUP[line.versionId]
+                      {readerUnavailableVersionIds.length > 0 ? (
+                        <div className="rounded-2xl border border-sky-400/20 bg-sky-500/10 px-4 py-3 text-sm leading-6 text-sky-700">
+                          下列譯本目前沒有本機 JSON，所以閱讀器暫時不顯示：
+                          {readerUnavailableVersionIds
+                            .map((id) => VERSION_LOOKUP[id]?.short ?? id)
+                            .join('、')}
+                        </div>
+                      ) : null}
 
-                                    return (
-                                      <div
-                                        key={`${entry.key}-${line.versionId}`}
-                                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                                      >
-                                        <div className="mb-3 flex items-center justify-between gap-3">
-                                          <span
-                                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${version.badge}`}
-                                          >
-                                            {version.short}
-                                          </span>
-                                          <span className="text-xs text-slate-500">閱讀</span>
+                      <ReaderActionBar
+                        previousChapter={previousReaderChapter}
+                        nextChapter={nextReaderChapter}
+                        selectedCount={selectedReaderEntries.length}
+                        onCopy={() =>
+                          copyEntries(
+                            selectedReaderEntries,
+                            '請先勾選要複製的經節',
+                            '已複製閱讀器經文'
+                          )
+                        }
+                        onNavigate={navigateChapter}
+                      />
+
+                      <div className="space-y-3">
+                        {readerChapterEntries.map((entry) => {
+                          const isChecked = selectedVerseKeySet.has(entry.key)
+                          const isFocusedVerse = entry.verse === readerSelection.verse
+
+                          return (
+                            <article
+                              key={entry.key}
+                              id={`reader-verse-${entry.key}`}
+                              className={`rounded-3xl border p-4 ${
+                                isFocusedVerse
+                                  ? 'border-sky-400/40 bg-sky-500/10'
+                                  : isChecked
+                                    ? 'border-amber-300/30 bg-amber-500/10'
+                                    : 'border-slate-200 bg-white/95'
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleVerseSelection(entry.key)}
+                                  className="mt-1 h-5 w-5 rounded border-slate-300 bg-white text-sky-500 focus:ring-2 focus:ring-sky-400/60"
+                                />
+
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-3">
+                                    <span className="inline-flex min-w-10 justify-center rounded-full border border-slate-300 bg-white px-3 py-1 text-sm font-semibold text-slate-900">
+                                      {entry.verse}
+                                    </span>
+                                    <span className="text-sm font-medium text-green-700">{entry.referenceLabel}</span>
+                                  </div>
+
+                                  <div className="mt-3 grid gap-3 xl:grid-cols-2">
+                                    {entry.lines.map((line) => {
+                                      const version = VERSION_LOOKUP[line.versionId] ?? {
+                                        short: line.versionId.toUpperCase(),
+                                        badge: 'bg-slate-100 text-slate-700 ring-slate-300'
+                                      }
+
+                                      return (
+                                        <div
+                                          key={`${entry.key}-${line.versionId}`}
+                                          className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                                        >
+                                          <div className="mb-3 flex items-center gap-3">
+                                            <span
+                                              className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${version.badge}`}
+                                            >
+                                              {version.short}
+                                            </span>
+                                          </div>
+                                          <p className="m-0 text-sm leading-7 text-slate-900 sm:text-[15px]">
+                                            {highlightText(line.text, query, exactPhrase)}
+                                          </p>
                                         </div>
-                                        <p className="m-0 text-sm leading-7 text-slate-900 sm:text-[15px]">
-                                          {highlightText(line.text, query, exactPhrase)}
-                                        </p>
-                                      </div>
-                                    )
-                                  })}
+                                      )
+                                    })}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </article>
-                        )
-                      })}
-                    </div>
+                            </article>
+                          )
+                        })}
+                      </div>
 
-                    <ReaderActionBar
-                      previousChapter={previousReaderChapter}
-                      nextChapter={nextReaderChapter}
-                      selectedCount={selectedReaderEntries.length}
-                      onCopy={() =>
-                        copyEntries(
-                          selectedReaderEntries,
-                          '請先在經文閱讀區勾選要複製的經節',
-                          '本章勾選經文已複製'
-                        )
-                      }
-                      onNavigate={navigateChapter}
-                    />
-                  </div>
-                )}
-              </div>
+                      <ReaderActionBar
+                        previousChapter={previousReaderChapter}
+                        nextChapter={nextReaderChapter}
+                        selectedCount={selectedReaderEntries.length}
+                        onCopy={() =>
+                          copyEntries(
+                            selectedReaderEntries,
+                            '請先勾選要複製的經節',
+                            '已複製閱讀器經文'
+                          )
+                        }
+                        onNavigate={navigateChapter}
+                      />
+                    </div>
+                  )}
+                </div>
               </section>
             ) : null}
 
             {activeView === 'search' ? (
               <section className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-glow">
-              <div className="flex flex-col gap-3 border-b border-slate-200 pb-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">搜尋結果</h2>
-                    <p className="mt-1 text-sm text-slate-600">
-                      點經文參照可直接跳到上方閱讀器，同一節也能勾選後複製。
-                    </p>
+                <div className="flex flex-col gap-3 border-b border-slate-200 pb-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900">搜尋結果</h2>
+                      <p className="mt-1 text-sm text-slate-600">
+                        結果依照聖經書卷順序排列，點選經節名稱可直接跳到閱讀頁對應章節。
+                      </p>
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      {query.trim()
+                        ? `共 ${mergedResults.length.toLocaleString()} 節，顯示前 ${Math.min(mergedResults.length, limit).toLocaleString()} 節`
+                        : '請先輸入關鍵字開始搜尋'}
+                    </div>
                   </div>
-                  <div className="text-sm text-slate-600">
-                    {query.trim()
-                      ? `找到 ${mergedResults.length.toLocaleString()} 筆，顯示前 ${Math.min(mergedResults.length, limit).toLocaleString()} 筆`
-                      : '輸入關鍵字開始搜尋'}
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyEntries(
+                          selectedSearchEntries,
+                          '請先勾選要複製的搜尋結果',
+                          '已複製搜尋結果'
+                        )
+                      }
+                      disabled={selectedSearchEntries.length === 0}
+                      className="rounded-2xl border border-sky-400/40 bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-200 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
+                    >
+                      複製勾選結果{selectedSearchEntries.length > 0 ? ` (${selectedSearchEntries.length})` : ''}
+                    </button>
+                    <div className="text-sm text-slate-500">勾選核取方塊後，可一次複製多節經文</div>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      copyEntries(
-                        selectedSearchEntries,
-                        '請先在搜尋結果區勾選要複製的經節',
-                        '搜尋結果勾選經文已複製'
-                      )
-                    }
-                    disabled={selectedSearchEntries.length === 0}
-                    className="rounded-2xl border border-sky-400/40 bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-200 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
-                  >
-                    複製勾選結果{selectedSearchEntries.length > 0 ? ` (${selectedSearchEntries.length})` : ''}
-                  </button>
-                  <div className="text-sm text-slate-500">勾選後即可複製目前搜尋列表中的經節</div>
-                </div>
-              </div>
+                <div className="mt-5">
+                  {isLoadingApp ? (
+                    <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
+                      正在載入本機譯本與搜尋索引...
+                    </div>
+                  ) : noLoadedData ? (
+                    <div className="rounded-3xl border border-amber-400/20 bg-amber-400/10 px-5 py-10 text-center">
+                      <div className="text-lg font-semibold text-amber-700">目前沒有可用的本機譯本</div>
+                      <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-amber-700">
+                        請先確認 `public/data/bibles` 內有合法 JSON 檔，系統載入後就能開始搜尋。
+                      </p>
+                    </div>
+                  ) : !query.trim() ? (
+                    <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
+                      先輸入關鍵字，例如 <span className="text-slate-900">grace</span>、
+                      <span className="text-slate-900"> 與神同行 </span>或
+                      <span className="text-slate-900"> God so loved </span>?
+                    </div>
+                  ) : searchState.requestState === 'loading' ? (
+                    <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
+                      正在搜尋中...
+                    </div>
+                  ) : mergedResults.length === 0 ? (
+                    <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
+                      目前找不到符合條件的經文，請試試其他關鍵字或改用片語搜尋。
+                    </div>
+                  ) : (
+                    <div className="scrollbar-thin space-y-4">
+                      {combinedResults.map((result) => {
+                        const isChecked = selectedVerseKeySet.has(result.key)
 
-              <div className="mt-5">
-                {shouldUseLiveNiv ? (
-                  <div className="mb-4 rounded-2xl border border-sky-400/20 bg-sky-500/10 px-4 py-3 text-sm leading-6 text-sky-700">
-                    目前 NIV 走 {apiBibleConfig.provider} live mode。英文關鍵字 / 經文參照最適合；
-                    中文關鍵字仍主要由本機中文 JSON 搜尋。
-                  </div>
-                ) : null}
-
-                {isLoadingApp ? (
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
-                    系統初始化中，正在準備 JSON 與搜尋 Worker...
-                  </div>
-                ) : noLoadedData ? (
-                  <div className="rounded-3xl border border-amber-400/20 bg-amber-400/10 px-5 py-10 text-center">
-                    <div className="text-lg font-semibold text-amber-700">目前沒有實際經文資料</div>
-                    <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-amber-700">
-                      這個專案已經把 UI、PWA、搜尋 Worker、IndexedDB 快取都接好了；你只要匯入合法授權的 JSON，就能在手機與電腦上做超快本機搜尋。
-                    </p>
-                  </div>
-                ) : !query.trim() ? (
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
-                    先輸入關鍵字，例如 <span className="text-slate-900">grace</span>、<span className="text-slate-900">恩典</span>、<span className="text-slate-900">信心</span> 或 <span className="text-slate-900">神愛世人</span>。
-                  </div>
-                ) : searchState.requestState === 'loading' ||
-                  liveNivState.requestState === 'loading' ? (
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
-                    正在搜尋中...
-                  </div>
-                ) : mergedResults.length === 0 &&
-                  liveNivState.requestState !== 'loading' ? (
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
-                    找不到符合結果，試試不同關鍵字或切換精準片語模式。
-                  </div>
-                ) : (
-                  <div className="scrollbar-thin space-y-4">
-                    {combinedResults.map((result) => {
-                      const isChecked = selectedVerseKeySet.has(result.key)
-
-                      return (
-                        <article
-                          key={result.key}
-                          className={`rounded-3xl border p-5 ${
-                            isChecked
-                              ? 'border-amber-300/30 bg-amber-500/10'
-                              : 'border-slate-200 bg-white/95'
-                          }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => toggleVerseSelection(result.key)}
-                              className="mt-1 h-5 w-5 rounded border-slate-300 bg-white text-sky-500 focus:ring-2 focus:ring-sky-400/60"
-                            />
-
+                        return (
+                          <article
+                            key={result.key}
+                            className={`rounded-3xl border p-5 ${
+                              isChecked
+                                ? 'border-amber-300/30 bg-amber-500/10'
+                                : 'border-slate-200 bg-white/95'
+                            }`}
+                          >
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
+                                <div className="flex items-start gap-3">
                                   <a
                                     href={`#${READER_SECTION_ID}`}
                                     onClick={(event) => {
@@ -1774,22 +1468,21 @@ export default function App() {
                                   >
                                     {result.referenceLabel}
                                   </a>
-                                  <div className="mt-1 text-xs text-sky-600">點這裡跳到經文閱讀</div>
-                                  <div className="mt-1 text-sm text-slate-600">
-                                    命中譯本：
-                                    {result.matchedVersionIds
-                                      .map((id) => VERSION_LOOKUP[id].short)
-                                      .join('、')}
-                                  </div>
-                                </div>
-                                <div className="rounded-full border border-slate-300 px-3 py-1 text-xs text-slate-600">
-                                  {result.matchedVersionIds.length} 個譯本命中
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => toggleVerseSelection(result.key)}
+                                    className="mt-1 h-5 w-5 rounded border-slate-300 bg-white text-sky-500 focus:ring-2 focus:ring-sky-400/60"
+                                  />
                                 </div>
                               </div>
 
                               <div className="mt-4 grid gap-3 xl:grid-cols-2">
                                 {result.lines.map((line) => {
-                                  const version = VERSION_LOOKUP[line.versionId]
+                                  const version = VERSION_LOOKUP[line.versionId] ?? {
+                                    short: line.versionId.toUpperCase(),
+                                    badge: 'bg-slate-100 text-slate-700 ring-slate-300'
+                                  }
 
                                   return (
                                     <div
@@ -1800,14 +1493,11 @@ export default function App() {
                                           : 'border-slate-200 bg-slate-50'
                                       }`}
                                     >
-                                      <div className="mb-3 flex items-center justify-between gap-3">
+                                      <div className="mb-3 flex items-center gap-3">
                                         <span
                                           className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${version.badge}`}
                                         >
                                           {version.short}
-                                        </span>
-                                        <span className="text-xs text-slate-500">
-                                          {line.matched ? '命中' : '對照'}
                                         </span>
                                       </div>
                                       <p className="m-0 text-sm leading-7 text-slate-900 sm:text-[15px]">
@@ -1818,30 +1508,29 @@ export default function App() {
                                 })}
                               </div>
                             </div>
-                          </div>
-                        </article>
-                      )
-                    })}
+                          </article>
+                        )
+                      })}
 
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          copyEntries(
-                            selectedSearchEntries,
-                            '請先在搜尋結果區勾選要複製的經節',
-                            '搜尋結果勾選經文已複製'
-                          )
-                        }
-                        disabled={selectedSearchEntries.length === 0}
-                        className="rounded-2xl border border-sky-400/40 bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-200 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
-                      >
-                        複製勾選結果{selectedSearchEntries.length > 0 ? ` (${selectedSearchEntries.length})` : ''}
-                      </button>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            copyEntries(
+                              selectedSearchEntries,
+                              '請先勾選要複製的搜尋結果',
+                              '已複製搜尋結果'
+                            )
+                          }
+                          disabled={selectedSearchEntries.length === 0}
+                          className="rounded-2xl border border-sky-400/40 bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-200 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-50 disabled:text-slate-500"
+                        >
+                          複製勾選結果{selectedSearchEntries.length > 0 ? ` (${selectedSearchEntries.length})` : ''}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
               </section>
             ) : null}
           </div>
