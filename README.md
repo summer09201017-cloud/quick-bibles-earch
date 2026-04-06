@@ -1,3 +1,19 @@
+## 常用指令
+
+### 本機預覽
+
+```powershell
+Set-Location -LiteralPath 'C:\Users\HFP\Desktop\8譯本聖經關鍵字查詢CO'; & 'C:\Program Files\nodejs\npm.cmd' run build; & 'C:\Program Files\nodejs\npm.cmd' run preview
+```
+
+### GitHub push + Netlify deploy
+
+```powershell
+Set-Location -LiteralPath 'C:\Users\HFP\Desktop\8譯本聖經關鍵字查詢CO'; git add .; git diff --cached --quiet; if ($LASTEXITCODE -ne 0) { git commit -m "Update site UI" }; git push origin main; & 'C:\Program Files\nodejs\npm.cmd' run build; & 'C:\Program Files\nodejs\npx.cmd' netlify-cli@24.8.1 deploy --prod --dir=dist --no-build
+```
+
+---
+
 # 多譯本聖經關鍵字查詢
 
 React + Vite + Tailwind CSS + PWA 的多譯本聖經關鍵字搜尋網站。

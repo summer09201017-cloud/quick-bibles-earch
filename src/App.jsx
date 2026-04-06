@@ -17,6 +17,76 @@ import { buildReferenceLabel, buildVerseKey, getHighlightRegex } from './lib/sea
 
 const BOOK_LOOKUP = Object.fromEntries(BOOKS.map((book) => [book.number, book]))
 const READER_SECTION_ID = 'chapter-reader'
+const FHL_COMMENTARY_URL = 'https://bible.fhl.net/index.html'
+const FHL_COMMENTARY_BOOK_ID = '3'
+const FHL_ENGS_BY_BOOK_NUMBER = {
+  1: 'Gen',
+  2: 'Ex',
+  3: 'Lev',
+  4: 'Num',
+  5: 'Deut',
+  6: 'Josh',
+  7: 'Judg',
+  8: 'Ruth',
+  9: '1 Sam',
+  10: '2 Sam',
+  11: '1 Kin',
+  12: '2 Kin',
+  13: '1 Chr',
+  14: '2 Chr',
+  15: 'Ezra',
+  16: 'Neh',
+  17: 'Esth',
+  18: 'Job',
+  19: 'Ps',
+  20: 'Prov',
+  21: 'Eccl',
+  22: 'Song',
+  23: 'Is',
+  24: 'Jer',
+  25: 'Lam',
+  26: 'Ezek',
+  27: 'Dan',
+  28: 'Hos',
+  29: 'Joel',
+  30: 'Amos',
+  31: 'Obad',
+  32: 'Jon',
+  33: 'Mic',
+  34: 'Nah',
+  35: 'Hab',
+  36: 'Zeph',
+  37: 'Hag',
+  38: 'Zech',
+  39: 'Mal',
+  40: 'Matt',
+  41: 'Mark',
+  42: 'Luke',
+  43: 'John',
+  44: 'Acts',
+  45: 'Rom',
+  46: '1 Cor',
+  47: '2 Cor',
+  48: 'Gal',
+  49: 'Eph',
+  50: 'Phil',
+  51: 'Col',
+  52: '1 Thess',
+  53: '2 Thess',
+  54: '1 Tim',
+  55: '2 Tim',
+  56: 'Titus',
+  57: 'Philem',
+  58: 'Heb',
+  59: 'James',
+  60: '1 Pet',
+  61: '2 Pet',
+  62: '1 John',
+  63: '2 John',
+  64: '3 John',
+  65: 'Jude',
+  66: 'Rev'
+}
 const MOBILE_HEADER_COLLAPSE_STORAGE_KEY = 'mobile-header-collapsed'
 const VISIBLE_VERSION_IDS = ['cuv', 'lzz', 'bbe', 'web', 'bsb', 'kjv', 'asv']
 const VISIBLE_VERSION_SET = new Set(VISIBLE_VERSION_IDS)
@@ -44,6 +114,48 @@ function Chip({ active, children, onClick, className = '' }) {
     >
       {children}
     </button>
+  )
+}
+
+function buildFhlCommentaryUrl(location) {
+  const bookNumber = Number(location?.bookNumber)
+  const chapter = Number(location?.chapter)
+  const verse = Number(location?.verse)
+  const engs = FHL_ENGS_BY_BOOK_NUMBER[bookNumber]
+
+  if (!engs || !chapter || !verse) {
+    return FHL_COMMENTARY_URL
+  }
+
+  const params = new URLSearchParams({
+    book: FHL_COMMENTARY_BOOK_ID,
+    engs,
+    chap: String(chapter),
+    sec: String(verse),
+    m: '0'
+  })
+
+  return `https://bible.fhl.net/new/com.php?${params.toString()}`
+}
+
+function buildFhlCommentaryUrlFromKey(key) {
+  const [bookNumber, chapter, verse] = String(key ?? '')
+    .split('-')
+    .map((value) => Number(value))
+
+  return buildFhlCommentaryUrl({ bookNumber, chapter, verse })
+}
+
+function CommentaryLink({ href, className = '' }) {
+  return (
+    <a
+      href={href || FHL_COMMENTARY_URL}
+      target="_blank"
+      rel="noreferrer"
+      className={`text-sm font-medium text-sky-700 underline-offset-2 transition hover:text-sky-800 hover:underline ${className}`}
+    >
+      經文註釋
+    </a>
   )
 }
 
@@ -1312,49 +1424,47 @@ export default function App() {
                                     : 'border-slate-200 bg-white/95'
                               }`}
                             >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex flex-wrap items-center gap-3">
-                                    <span className="inline-flex min-w-10 justify-center rounded-full border border-slate-300 bg-white px-3 py-1 text-sm font-semibold text-slate-900">
-                                      {entry.verse}
-                                    </span>
-                                    <span className="text-sm font-medium text-green-700">{entry.referenceLabel}</span>
-                                  </div>
-
-                                  <div className="mt-3 grid gap-3 xl:grid-cols-2">
-                                    {entry.lines.map((line) => {
-                                      const version = VERSION_LOOKUP[line.versionId] ?? {
-                                        short: line.versionId.toUpperCase(),
-                                        badge: 'bg-slate-100 text-slate-700 ring-slate-300'
-                                      }
-
-                                      return (
-                                        <div
-                                          key={`${entry.key}-${line.versionId}`}
-                                          className="-mx-5 border-x-0 border-y border-slate-200 bg-slate-50 px-5 py-4 sm:mx-0 sm:rounded-2xl sm:border sm:p-4"
-                                        >
-                                          <div className="mb-3 flex items-center gap-3">
-                                            <span
-                                              className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${version.badge}`}
-                                            >
-                                              {version.short}
-                                            </span>
-                                          </div>
-                                          <p className="m-0 text-sm leading-7 text-slate-900 sm:text-[15px]">
-                                            {highlightText(line.text, query, exactPhrase)}
-                                          </p>
-                                        </div>
-                                      )
-                                    })}
-                                  </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <span className="inline-flex min-w-10 justify-center rounded-full border border-slate-300 bg-white px-3 py-1 text-sm font-semibold text-slate-900">
+                                    {entry.verse}
+                                  </span>
+                                  <span className="text-sm font-medium text-green-700">{entry.referenceLabel}</span>
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => toggleVerseSelection(entry.key)}
+                                    className="h-5 w-5 shrink-0 rounded border-slate-300 bg-white text-sky-500 focus:ring-2 focus:ring-sky-400/60"
+                                  />
+                                  <CommentaryLink href={buildFhlCommentaryUrlFromKey(entry.key)} />
                                 </div>
 
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => toggleVerseSelection(entry.key)}
-                                  className="mt-1 h-5 w-5 shrink-0 rounded border-slate-300 bg-white text-sky-500 focus:ring-2 focus:ring-sky-400/60"
-                                />
+                                <div className="mt-3 grid gap-3 xl:grid-cols-2">
+                                  {entry.lines.map((line) => {
+                                    const version = VERSION_LOOKUP[line.versionId] ?? {
+                                      short: line.versionId.toUpperCase(),
+                                      badge: 'bg-slate-100 text-slate-700 ring-slate-300'
+                                    }
+
+                                    return (
+                                      <div
+                                        key={`${entry.key}-${line.versionId}`}
+                                        className="-mx-5 border-x-0 border-y border-slate-200 bg-slate-50 px-5 py-4 sm:mx-0 sm:rounded-2xl sm:border sm:p-4"
+                                      >
+                                        <div className="mb-3 flex items-center gap-3">
+                                          <span
+                                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${version.badge}`}
+                                          >
+                                            {version.short}
+                                          </span>
+                                        </div>
+                                        <p className="m-0 text-sm leading-7 text-slate-900 sm:text-[15px]">
+                                          {highlightText(line.text, query, exactPhrase)}
+                                        </p>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
                               </div>
                             </article>
                           )
@@ -1474,6 +1584,10 @@ export default function App() {
                                     checked={isChecked}
                                     onChange={() => toggleVerseSelection(result.key)}
                                     className="mt-1 h-5 w-5 rounded border-slate-300 bg-white text-sky-500 focus:ring-2 focus:ring-sky-400/60"
+                                  />
+                                  <CommentaryLink
+                                    href={buildFhlCommentaryUrlFromKey(result.key)}
+                                    className="mt-0.5"
                                   />
                                 </div>
                               </div>
