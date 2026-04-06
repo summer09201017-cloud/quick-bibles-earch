@@ -1502,7 +1502,7 @@ export default function App() {
                     </div>
                     <div className="text-sm text-slate-600">
                       {query.trim()
-                        ? `共 ${mergedResults.length.toLocaleString()} 節，顯示前 ${Math.min(mergedResults.length, limit).toLocaleString()} 節`
+                        ? `共 ${mergedResults.length.toLocaleString()} 節，顯示前 ${Math.min(mergedResults.length, limit).toLocaleString()} 節，搜尋耗時 ${searchState.elapsedMs || 0} ms`
                         : '請先輸入關鍵字開始搜尋'}
                     </div>
                   </div>
