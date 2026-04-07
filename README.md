@@ -1,3 +1,19 @@
+## 一行指令
+
+### 本機預覽一行版
+
+```powershell
+Set-Location -LiteralPath 'C:\Users\HFP\Desktop\8譯本聖經關鍵字查詢CO'; & 'C:\Program Files\nodejs\npm.cmd' run build; & 'C:\Program Files\nodejs\npm.cmd' run preview
+```
+
+### 正式上線一行版
+
+```powershell
+Set-Location -LiteralPath 'C:\Users\HFP\Desktop\8譯本聖經關鍵字查詢CO'; git add .; git diff --cached --quiet; if ($LASTEXITCODE -ne 0) { git commit -m "Update site UI" }; git push origin main; & 'C:\Program Files\nodejs\npm.cmd' run build; & 'C:\Program Files\nodejs\npx.cmd' netlify-cli@24.8.1 deploy --prod --dir=dist --no-build
+```
+
+---
+
 # 多譯本關鍵字查詢
 
 這是一個用 React + Vite + Tailwind CSS 製作的多譯本聖經查詢網站，支援 PWA 安裝、手機與電腦瀏覽、本機 JSON 快速搜尋，以及經文閱讀與勾選複製。

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
+import html
 import io
 import json
 import re
-import sys
 import time
 import unicodedata
 import xml.etree.ElementTree as ET
@@ -18,253 +19,235 @@ from urllib.request import Request, urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT_DIR = ROOT / "public" / "data" / "bibles"
+DEFAULT_OUTPUT_DIR = ROOT / "public" / "data" / "bibles"
+FHL_API_BASE = "https://bible.fhl.net/json"
 
 
 @dataclass(frozen=True)
 class Book:
     number: int
     english: str
-    chinese_full: str
-    chinese_short: str
     chapters: int
+    vpl_code: str
+    fhl_engs: str
+
+
+@dataclass(frozen=True)
+class TranslationSpec:
+    id: str
+    short: str
+    name: str
+    language: str
+    source_name: str
+    source_url: str
+    provider: str
+    provider_version: str
+    kind: str
+    remote_id: str
 
 
 BOOKS = [
-    Book(1, "Genesis", "創世記", "創", 50),
-    Book(2, "Exodus", "出埃及記", "出", 40),
-    Book(3, "Leviticus", "利未記", "利", 27),
-    Book(4, "Numbers", "民數記", "民", 36),
-    Book(5, "Deuteronomy", "申命記", "申", 34),
-    Book(6, "Joshua", "約書亞記", "書", 24),
-    Book(7, "Judges", "士師記", "士", 21),
-    Book(8, "Ruth", "路得記", "得", 4),
-    Book(9, "1 Samuel", "撒母耳記上", "撒上", 31),
-    Book(10, "2 Samuel", "撒母耳記下", "撒下", 24),
-    Book(11, "1 Kings", "列王紀上", "王上", 22),
-    Book(12, "2 Kings", "列王紀下", "王下", 25),
-    Book(13, "1 Chronicles", "歷代志上", "代上", 29),
-    Book(14, "2 Chronicles", "歷代志下", "代下", 36),
-    Book(15, "Ezra", "以斯拉記", "拉", 10),
-    Book(16, "Nehemiah", "尼希米記", "尼", 13),
-    Book(17, "Esther", "以斯帖記", "斯", 10),
-    Book(18, "Job", "約伯記", "伯", 42),
-    Book(19, "Psalms", "詩篇", "詩", 150),
-    Book(20, "Proverbs", "箴言", "箴", 31),
-    Book(21, "Ecclesiastes", "傳道書", "傳", 12),
-    Book(22, "Song of Solomon", "雅歌", "歌", 8),
-    Book(23, "Isaiah", "以賽亞書", "賽", 66),
-    Book(24, "Jeremiah", "耶利米書", "耶", 52),
-    Book(25, "Lamentations", "耶利米哀歌", "哀", 5),
-    Book(26, "Ezekiel", "以西結書", "結", 48),
-    Book(27, "Daniel", "但以理書", "但", 12),
-    Book(28, "Hosea", "何西阿書", "何", 14),
-    Book(29, "Joel", "約珥書", "珥", 3),
-    Book(30, "Amos", "阿摩司書", "摩", 9),
-    Book(31, "Obadiah", "俄巴底亞書", "俄", 1),
-    Book(32, "Jonah", "約拿書", "拿", 4),
-    Book(33, "Micah", "彌迦書", "彌", 7),
-    Book(34, "Nahum", "那鴻書", "鴻", 3),
-    Book(35, "Habakkuk", "哈巴谷書", "哈", 3),
-    Book(36, "Zephaniah", "西番雅書", "番", 3),
-    Book(37, "Haggai", "哈該書", "該", 2),
-    Book(38, "Zechariah", "撒迦利亞書", "亞", 14),
-    Book(39, "Malachi", "瑪拉基書", "瑪", 4),
-    Book(40, "Matthew", "馬太福音", "太", 28),
-    Book(41, "Mark", "馬可福音", "可", 16),
-    Book(42, "Luke", "路加福音", "路", 24),
-    Book(43, "John", "約翰福音", "約", 21),
-    Book(44, "Acts", "使徒行傳", "徒", 28),
-    Book(45, "Romans", "羅馬書", "羅", 16),
-    Book(46, "1 Corinthians", "哥林多前書", "林前", 16),
-    Book(47, "2 Corinthians", "哥林多後書", "林後", 13),
-    Book(48, "Galatians", "加拉太書", "加", 6),
-    Book(49, "Ephesians", "以弗所書", "弗", 6),
-    Book(50, "Philippians", "腓立比書", "腓", 4),
-    Book(51, "Colossians", "歌羅西書", "西", 4),
-    Book(52, "1 Thessalonians", "帖撒羅尼迦前書", "帖前", 5),
-    Book(53, "2 Thessalonians", "帖撒羅尼迦後書", "帖後", 3),
-    Book(54, "1 Timothy", "提摩太前書", "提前", 6),
-    Book(55, "2 Timothy", "提摩太後書", "提後", 4),
-    Book(56, "Titus", "提多書", "多", 3),
-    Book(57, "Philemon", "腓利門書", "門", 1),
-    Book(58, "Hebrews", "希伯來書", "來", 13),
-    Book(59, "James", "雅各書", "雅", 5),
-    Book(60, "1 Peter", "彼得前書", "彼前", 5),
-    Book(61, "2 Peter", "彼得後書", "彼後", 3),
-    Book(62, "1 John", "約翰壹書", "約一", 5),
-    Book(63, "2 John", "約翰貳書", "約二", 1),
-    Book(64, "3 John", "約翰參書", "約三", 1),
-    Book(65, "Jude", "猶大書", "猶", 1),
-    Book(66, "Revelation", "啟示錄", "啟", 22),
+    Book(1, "Genesis", 50, "GEN", "Gen"),
+    Book(2, "Exodus", 40, "EXO", "Exo"),
+    Book(3, "Leviticus", 27, "LEV", "Lev"),
+    Book(4, "Numbers", 36, "NUM", "Num"),
+    Book(5, "Deuteronomy", 34, "DEU", "Deu"),
+    Book(6, "Joshua", 24, "JOS", "Josh"),
+    Book(7, "Judges", 21, "JDG", "Judg"),
+    Book(8, "Ruth", 4, "RUT", "Ruth"),
+    Book(9, "1 Samuel", 31, "1SA", "1 Sam"),
+    Book(10, "2 Samuel", 24, "2SA", "2 Sam"),
+    Book(11, "1 Kings", 22, "1KI", "1 Kin"),
+    Book(12, "2 Kings", 25, "2KI", "2 Kin"),
+    Book(13, "1 Chronicles", 29, "1CH", "1 Chr"),
+    Book(14, "2 Chronicles", 36, "2CH", "2 Chr"),
+    Book(15, "Ezra", 10, "EZR", "Ezra"),
+    Book(16, "Nehemiah", 13, "NEH", "Neh"),
+    Book(17, "Esther", 10, "EST", "Est"),
+    Book(18, "Job", 42, "JOB", "Job"),
+    Book(19, "Psalms", 150, "PSA", "Ps"),
+    Book(20, "Proverbs", 31, "PRO", "Prov"),
+    Book(21, "Ecclesiastes", 12, "ECC", "Eccl"),
+    Book(22, "Song of Solomon", 8, "SNG", "Song"),
+    Book(23, "Isaiah", 66, "ISA", "Isa"),
+    Book(24, "Jeremiah", 52, "JER", "Jer"),
+    Book(25, "Lamentations", 5, "LAM", "Lam"),
+    Book(26, "Ezekiel", 48, "EZK", "Ezek"),
+    Book(27, "Daniel", 12, "DAN", "Dan"),
+    Book(28, "Hosea", 14, "HOS", "Hos"),
+    Book(29, "Joel", 3, "JOL", "Joel"),
+    Book(30, "Amos", 9, "AMO", "Amos"),
+    Book(31, "Obadiah", 1, "OBA", "Obad"),
+    Book(32, "Jonah", 4, "JON", "Jon"),
+    Book(33, "Micah", 7, "MIC", "Mic"),
+    Book(34, "Nahum", 3, "NAM", "Nah"),
+    Book(35, "Habakkuk", 3, "HAB", "Hab"),
+    Book(36, "Zephaniah", 3, "ZEP", "Zeph"),
+    Book(37, "Haggai", 2, "HAG", "Hag"),
+    Book(38, "Zechariah", 14, "ZEC", "Zech"),
+    Book(39, "Malachi", 4, "MAL", "Mal"),
+    Book(40, "Matthew", 28, "MAT", "Matt"),
+    Book(41, "Mark", 16, "MRK", "Mark"),
+    Book(42, "Luke", 24, "LUK", "Luke"),
+    Book(43, "John", 21, "JHN", "John"),
+    Book(44, "Acts", 28, "ACT", "Acts"),
+    Book(45, "Romans", 16, "ROM", "Rom"),
+    Book(46, "1 Corinthians", 16, "1CO", "1 Cor"),
+    Book(47, "2 Corinthians", 13, "2CO", "2 Cor"),
+    Book(48, "Galatians", 6, "GAL", "Gal"),
+    Book(49, "Ephesians", 6, "EPH", "Eph"),
+    Book(50, "Philippians", 4, "PHP", "Phil"),
+    Book(51, "Colossians", 4, "COL", "Col"),
+    Book(52, "1 Thessalonians", 5, "1TH", "1 Thess"),
+    Book(53, "2 Thessalonians", 3, "2TH", "2 Thess"),
+    Book(54, "1 Timothy", 6, "1TI", "1 Tim"),
+    Book(55, "2 Timothy", 4, "2TI", "2 Tim"),
+    Book(56, "Titus", 3, "TIT", "Titus"),
+    Book(57, "Philemon", 1, "PHM", "Philem"),
+    Book(58, "Hebrews", 13, "HEB", "Heb"),
+    Book(59, "James", 5, "JAS", "James"),
+    Book(60, "1 Peter", 5, "1PE", "1 Pet"),
+    Book(61, "2 Peter", 3, "2PE", "2 Pet"),
+    Book(62, "1 John", 5, "1JN", "1 John"),
+    Book(63, "2 John", 1, "2JN", "2 John"),
+    Book(64, "3 John", 1, "3JN", "3 John"),
+    Book(65, "Jude", 1, "JUD", "Jude"),
+    Book(66, "Revelation", 22, "REV", "Rev"),
 ]
 
-
-VPL_BOOK_CODES = [
-    "GEN",
-    "EXO",
-    "LEV",
-    "NUM",
-    "DEU",
-    "JOS",
-    "JDG",
-    "RUT",
-    "1SA",
-    "2SA",
-    "1KI",
-    "2KI",
-    "1CH",
-    "2CH",
-    "EZR",
-    "NEH",
-    "EST",
-    "JOB",
-    "PSA",
-    "PRO",
-    "ECC",
-    "SNG",
-    "ISA",
-    "JER",
-    "LAM",
-    "EZK",
-    "DAN",
-    "HOS",
-    "JOL",
-    "AMO",
-    "OBA",
-    "JON",
-    "MIC",
-    "NAM",
-    "HAB",
-    "ZEP",
-    "HAG",
-    "ZEC",
-    "MAL",
-    "MAT",
-    "MRK",
-    "LUK",
-    "JHN",
-    "ACT",
-    "ROM",
-    "1CO",
-    "2CO",
-    "GAL",
-    "EPH",
-    "PHP",
-    "COL",
-    "1TH",
-    "2TH",
-    "1TI",
-    "2TI",
-    "TIT",
-    "PHM",
-    "HEB",
-    "JAS",
-    "1PE",
-    "2PE",
-    "1JN",
-    "2JN",
-    "3JN",
-    "JUD",
-    "REV",
-]
-
-BOOK_BY_VPL_CODE = dict(zip(VPL_BOOK_CODES, BOOKS))
-
+BOOK_BY_NUMBER = {book.number: book for book in BOOKS}
+BOOK_BY_VPL_CODE = {book.vpl_code: book for book in BOOKS}
 
 FHL_TRANSLATIONS = [
-    {
-        "id": "web",
-        "short": "WEB",
-        "name": "World English Bible",
-        "language": "English",
-        "fhl_version": "web",
-        "source_name": "信望愛 FHL JSON API",
-        "source_url": "https://bible.fhl.net/json/",
-    },
-    {
-        "id": "kjv",
-        "short": "KJV",
-        "name": "King James Version",
-        "language": "English",
-        "fhl_version": "kjv",
-        "source_name": "信望愛 FHL JSON API",
-        "source_url": "https://bible.fhl.net/json/",
-    },
-    {
-        "id": "asv",
-        "short": "ASV",
-        "name": "American Standard Version",
-        "language": "English",
-        "fhl_version": "asv",
-        "source_name": "信望愛 FHL JSON API",
-        "source_url": "https://bible.fhl.net/json/",
-    },
-    {
-        "id": "bbe",
-        "short": "BBE",
-        "name": "Bible in Basic English",
-        "language": "English",
-        "fhl_version": "bbe",
-        "source_name": "信望愛 FHL JSON API",
-        "source_url": "https://bible.fhl.net/json/",
-    },
-    {
-        "id": "cuv",
-        "short": "和合本",
-        "name": "FHL和合本",
-        "language": "中文",
-        "fhl_version": "unv",
-        "source_name": "信望愛 FHL JSON API",
-        "source_url": "https://bible.fhl.net/json/",
-    },
-    {
-        "id": "lzz",
-        "short": "呂振中",
-        "name": "呂振中譯本",
-        "language": "中文",
-        "fhl_version": "lcc",
-        "source_name": "信望愛 FHL JSON API",
-        "source_url": "https://bible.fhl.net/json/",
-    },
+    TranslationSpec(
+        id="cuv",
+        short="CUV",
+        name="Chinese Union Version",
+        language="Chinese",
+        source_name="FHL JSON API",
+        source_url="https://bible.fhl.net/json/",
+        provider="FHL",
+        provider_version="unv",
+        kind="fhl",
+        remote_id="unv",
+    ),
+    TranslationSpec(
+        id="cnv",
+        short="CNV",
+        name="Chinese New Version",
+        language="Chinese",
+        source_name="FHL JSON API",
+        source_url="https://bible.fhl.net/json/",
+        provider="FHL",
+        provider_version="ncv",
+        kind="fhl",
+        remote_id="ncv",
+    ),
+    TranslationSpec(
+        id="lzz",
+        short="LZZ",
+        name="Lu Chen Chung Version",
+        language="Chinese",
+        source_name="FHL JSON API",
+        source_url="https://bible.fhl.net/json/",
+        provider="FHL",
+        provider_version="lcc",
+        kind="fhl",
+        remote_id="lcc",
+    ),
+    TranslationSpec(
+        id="bbe",
+        short="BBE",
+        name="Bible in Basic English",
+        language="English",
+        source_name="FHL JSON API",
+        source_url="https://bible.fhl.net/json/",
+        provider="FHL",
+        provider_version="bbe",
+        kind="fhl",
+        remote_id="bbe",
+    ),
+    TranslationSpec(
+        id="web",
+        short="WEB",
+        name="World English Bible",
+        language="English",
+        source_name="FHL JSON API",
+        source_url="https://bible.fhl.net/json/",
+        provider="FHL",
+        provider_version="web",
+        kind="fhl",
+        remote_id="web",
+    ),
+    TranslationSpec(
+        id="kjv",
+        short="KJV",
+        name="King James Version",
+        language="English",
+        source_name="FHL JSON API",
+        source_url="https://bible.fhl.net/json/",
+        provider="FHL",
+        provider_version="kjv",
+        kind="fhl",
+        remote_id="kjv",
+    ),
+    TranslationSpec(
+        id="asv",
+        short="ASV",
+        name="American Standard Version",
+        language="English",
+        source_name="FHL JSON API",
+        source_url="https://bible.fhl.net/json/",
+        provider="FHL",
+        provider_version="asv",
+        kind="fhl",
+        remote_id="asv",
+    ),
 ]
 
 VPL_TRANSLATIONS = [
-    {
-        "id": "bsb",
-        "short": "BSB",
-        "name": "Berean Standard Bible",
-        "language": "English",
-        "download_url": "https://ebible.org/Scriptures/engbsb_vpl.zip",
-        "source_name": "eBible.org Scripture archive",
-        "source_url": "https://berean.bible/downloads.htm",
-        "provider": "eBible.org / Berean Bible",
-        "provider_version": "engbsb_vpl",
-    },
-    {
-        "id": "oeb",
-        "short": "OEB",
-        "name": "Open English Bible (44 books)",
-        "language": "English",
-        "download_url": "https://ebible.org/Scriptures/engoebus_vpl.zip",
-        "source_name": "eBible.org Scripture archive",
-        "source_url": "https://ebible.org/find/show.php?id=engoebus",
-        "provider": "eBible.org / Open English Bible",
-        "provider_version": "engoebus_vpl",
-    },
+    TranslationSpec(
+        id="bsb",
+        short="BSB",
+        name="Berean Standard Bible",
+        language="English",
+        source_name="eBible.org Scripture archive",
+        source_url="https://berean.bible/downloads.htm",
+        provider="eBible.org / Berean Bible",
+        provider_version="engbsb_vpl",
+        kind="vpl",
+        remote_id="https://ebible.org/Scriptures/engbsb_vpl.zip",
+    ),
+    TranslationSpec(
+        id="oeb",
+        short="OEB",
+        name="Open English Bible",
+        language="English",
+        source_name="eBible.org Scripture archive",
+        source_url="https://ebible.org/find/show.php?id=engoebus",
+        provider="eBible.org / Open English Bible",
+        provider_version="engoebus_vpl",
+        kind="vpl",
+        remote_id="https://ebible.org/Scriptures/engoebus_vpl.zip",
+    ),
 ]
+
+ALL_TRANSLATIONS = [*FHL_TRANSLATIONS, *VPL_TRANSLATIONS]
+TRANSLATION_BY_ID = {spec.id: spec for spec in ALL_TRANSLATIONS}
+
+HAN_PATTERN = r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]"
 
 
 def normalize_for_search(value: str) -> str:
     value = unicodedata.normalize("NFKC", str(value or "")).lower()
-    value = value.replace("’", "'").replace("`", "'")
+    value = value.replace("\u2018", "'").replace("\u2019", "'").replace("`", "'")
 
     cleaned: list[str] = []
     previous_space = False
 
     for char in value:
         category = unicodedata.category(char)
-        keep_char = category[0] in {"L", "N"} or char in {" ", ":", "'", "-"}
+        keep_char = category[:1] in {"L", "N"} or char in {" ", ":", "'", "-"}
         if keep_char:
             cleaned.append(char)
             previous_space = char == " "
@@ -274,18 +257,51 @@ def normalize_for_search(value: str) -> str:
             cleaned.append(" ")
             previous_space = True
 
-    return re.sub(r"\s+", " ", "".join(cleaned)).strip()
+    normalized = re.sub(r"\s+", " ", "".join(cleaned)).strip()
+    normalized = re.sub(rf"({HAN_PATTERN})\s+(?={HAN_PATTERN})", r"\1", normalized)
+    normalized = re.sub(rf"({HAN_PATTERN})\s+(?=[A-Za-z0-9])", r"\1", normalized)
+    normalized = re.sub(rf"([A-Za-z0-9])\s+(?={HAN_PATTERN})", r"\1", normalized)
+    return normalized
+
+
+def strip_markup(value: str) -> str:
+    text = html.unescape(str(value or ""))
+    text = re.sub(r"<br\s*/?>", " ", text, flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def decode_response_body(data: bytes, content_type: str | None) -> str:
+    candidates: list[str] = []
+    charset_match = re.search(r"charset=([a-z0-9_-]+)", content_type or "", flags=re.IGNORECASE)
+    if charset_match:
+        candidates.append(charset_match.group(1))
+
+    candidates.extend(["utf-8-sig", "utf-8", "cp950", "big5", "latin-1"])
+
+    tried: set[str] = set()
+    for encoding in candidates:
+        normalized = encoding.lower()
+        if normalized in tried:
+            continue
+        tried.add(normalized)
+
+        try:
+            return data.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+
+    raise UnicodeDecodeError("utf-8", data, 0, len(data), "Unable to decode response body")
 
 
 def fetch_bytes(url: str) -> bytes:
     request = Request(
         url,
         headers={
-            "User-Agent": "bible-keyword-search-sync/1.0 (+local build)",
+            "User-Agent": "bible-keyword-search-sync/2.0",
             "Accept": "*/*",
         },
     )
-
     with urlopen(request, timeout=120) as response:
         return response.read()
 
@@ -294,113 +310,104 @@ def fetch_json(url: str) -> Any:
     request = Request(
         url,
         headers={
-            "User-Agent": "bible-keyword-search-sync/1.0 (+local build)",
-            "Accept": "application/json",
+            "User-Agent": "bible-keyword-search-sync/2.0",
+            "Accept": "application/json,text/plain,*/*",
         },
     )
-
-    with urlopen(request, timeout=60) as response:
-        return json.load(response)
-
-
-def strip_bom(value: str) -> str:
-    return value[1:] if value.startswith("\ufeff") else value
+    with urlopen(request, timeout=120) as response:
+        raw_body = response.read()
+        text = decode_response_body(raw_body, response.headers.get("Content-Type"))
+        return json.loads(text)
 
 
-def build_fhl_book_payload(version_code: str, book: Book) -> list[dict[str, Any]]:
-    params = urlencode(
-        {
-            "version": version_code,
-            "engs": book.chinese_short,
-            "qstr": f"1:1-{book.chapters}:999",
-            "strong": 0,
-            "gb": 0,
-        }
-    )
-    url = f"https://bible.fhl.net/json/qsb.php?{params}"
-    payload = fetch_json(url)
-
-    if payload.get("status") != "success":
-        raise RuntimeError(f"FHL API failed for {version_code} {book.chinese_full}")
-
-    verses = []
-    for verse in payload.get("record", []):
-        verse_text = str(verse.get("bible_text", "")).strip()
-        verses.append(
-            {
-                "id": f"{book.number}-{int(verse['chap'])}-{int(verse['sec'])}",
-                "bookNumber": book.number,
-                "book": book.chinese_full,
-                "chapter": int(verse["chap"]),
-                "verse": int(verse["sec"]),
-                "text": verse_text,
-                "normalizedText": normalize_for_search(verse_text),
-            }
-        )
-
-    if not verses:
-        raise RuntimeError(f"No verses returned for {version_code} {book.chinese_full}")
-
-    return verses
-
-
-def build_fhl_translation(spec: dict[str, str]) -> dict[str, Any]:
-    verses: list[dict[str, Any]] = []
-    started_at = time.perf_counter()
-
-    for index, book in enumerate(BOOKS, start=1):
-        print(f"[{spec['id']}] {index:02d}/66 下載 {book.chinese_full}", flush=True)
-        verses.extend(build_fhl_book_payload(spec["fhl_version"], book))
-        time.sleep(0.08)
-
-    elapsed = time.perf_counter() - started_at
-    print(
-        f"[{spec['id']}] 完成，共 {len(verses):,} 節，耗時 {elapsed:.1f}s",
-        flush=True,
-    )
-
+def build_translation_payload(spec: TranslationSpec, verses: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "translation": {
-            "id": spec["id"],
-            "short": spec["short"],
-            "name": spec["name"],
-            "language": spec["language"],
-            "sourceName": spec["source_name"],
-            "sourceUrl": spec["source_url"],
-            "sourceVersion": spec["fhl_version"],
+            "id": spec.id,
+            "short": spec.short,
+            "name": spec.name,
+            "language": spec.language,
+            "sourceName": spec.source_name,
+            "sourceUrl": spec.source_url,
+            "sourceVersion": spec.provider_version,
             "downloadedAt": datetime.now(timezone.utc).isoformat(),
         },
         "metadata": {
-            "provider": "FHL",
-            "providerVersion": spec["fhl_version"],
+            "provider": spec.provider,
+            "providerVersion": spec.provider_version,
             "verseCount": len(verses),
         },
         "verses": verses,
     }
 
 
-def parse_vpl_xml_verses(xml_bytes: bytes) -> list[dict[str, Any]]:
-    root = ET.fromstring(strip_bom(xml_bytes.decode("utf-8")))
+def build_fhl_chapter_payload(spec: TranslationSpec, book: Book, chapter_number: int) -> list[dict[str, Any]]:
+    payload_errors: list[str] = []
+    records: list[dict[str, Any]] = []
+
+    qb_params = urlencode(
+        {
+            "version": spec.remote_id,
+            "bid": book.number,
+            "chap": chapter_number,
+            "sec": "1-999",
+            "strong": 0,
+            "gb": 0,
+        }
+    )
+    qb_url = f"https://bible.fhl.net/api/qb.php?{qb_params}"
+
+    try:
+        payload = fetch_json(qb_url)
+        qb_records = payload.get("record", [])
+        if payload.get("status") == "success" and isinstance(qb_records, list) and qb_records:
+            records = qb_records
+    except Exception as error:
+        payload_errors.append(f"api/qb.php failed: {error}")
+
+    if not records:
+        qsb_params = urlencode(
+            {
+                "version": spec.remote_id,
+                "engs": book.fhl_engs,
+                "qstr": f"{chapter_number}:1-{chapter_number}:999",
+                "strong": 0,
+                "gb": 0,
+            }
+        )
+        qsb_url = f"{FHL_API_BASE}/qsb.php?{qsb_params}"
+
+        try:
+            payload = fetch_json(qsb_url)
+            qsb_records = payload.get("record", [])
+            if payload.get("status") == "success" and isinstance(qsb_records, list) and qsb_records:
+                records = qsb_records
+            else:
+                payload_errors.append(f"json/qsb.php returned no records for {book.fhl_engs} {chapter_number}")
+        except Exception as error:
+            payload_errors.append(f"json/qsb.php failed: {error}")
+
+    if not records:
+        joined_errors = "; ".join(payload_errors) if payload_errors else "no response details"
+        raise RuntimeError(
+            f"FHL returned no verses for {spec.id} {book.english} {chapter_number}. {joined_errors}"
+        )
+
     verses: list[dict[str, Any]] = []
+    for record in records:
+        verse_number = int(record["sec"])
+        if spec.language == "Chinese":
+            book_label = str(record.get("chineses") or book.english)
+        else:
+            book_label = book.english
 
-    for node in root.findall("v"):
-        code = str(node.attrib.get("b", "")).strip().upper()
-        book = BOOK_BY_VPL_CODE.get(code)
-        if not book:
-            continue
-
-        chapter = int(node.attrib["c"])
-        verse_number = int(node.attrib["v"])
-        verse_text = " ".join("".join(node.itertext()).split()).strip()
-        if not verse_text:
-            continue
-
+        verse_text = strip_markup(record.get("bible_text", ""))
         verses.append(
             {
-                "id": f"{book.number}-{chapter}-{verse_number}",
+                "id": f"{book.number}-{chapter_number}-{verse_number}",
                 "bookNumber": book.number,
-                "book": book.chinese_full,
-                "chapter": chapter,
+                "book": book_label,
+                "chapter": chapter_number,
                 "verse": verse_number,
                 "text": verse_text,
                 "normalizedText": normalize_for_search(verse_text),
@@ -410,69 +417,144 @@ def parse_vpl_xml_verses(xml_bytes: bytes) -> list[dict[str, Any]]:
     return verses
 
 
-def build_vpl_translation(spec: dict[str, str]) -> dict[str, Any]:
-    print(f"[{spec['id']}] 下載 {spec['download_url']}", flush=True)
-    archive_bytes = fetch_bytes(spec["download_url"])
+def build_fhl_translation(spec: TranslationSpec, delay_seconds: float) -> dict[str, Any]:
+    verses: list[dict[str, Any]] = []
+    started_at = time.perf_counter()
+
+    for book in BOOKS:
+        print(f"[{spec.id}] {book.english}", flush=True)
+        for chapter_number in range(1, book.chapters + 1):
+            verses.extend(build_fhl_chapter_payload(spec, book, chapter_number))
+            if delay_seconds > 0:
+                time.sleep(delay_seconds)
+
+    elapsed = time.perf_counter() - started_at
+    print(f"[{spec.id}] synced {len(verses):,} verses in {elapsed:.1f}s", flush=True)
+    return build_translation_payload(spec, verses)
+
+
+def parse_vpl_xml_verses(xml_bytes: bytes) -> list[dict[str, Any]]:
+    text = decode_response_body(xml_bytes, "application/xml")
+    root = ET.fromstring(text)
+    verses: list[dict[str, Any]] = []
+
+    for node in root.findall("v"):
+        book = BOOK_BY_VPL_CODE.get(str(node.attrib.get("b", "")).strip().upper())
+        if not book:
+            continue
+
+        chapter_number = int(node.attrib["c"])
+        verse_number = int(node.attrib["v"])
+        verse_text = strip_markup("".join(node.itertext()))
+        if not verse_text:
+            continue
+
+        verses.append(
+            {
+                "id": f"{book.number}-{chapter_number}-{verse_number}",
+                "bookNumber": book.number,
+                "book": book.english,
+                "chapter": chapter_number,
+                "verse": verse_number,
+                "text": verse_text,
+                "normalizedText": normalize_for_search(verse_text),
+            }
+        )
+
+    return verses
+
+
+def build_vpl_translation(spec: TranslationSpec) -> dict[str, Any]:
+    print(f"[{spec.id}] downloading {spec.remote_id}", flush=True)
+    archive_bytes = fetch_bytes(spec.remote_id)
 
     with zipfile.ZipFile(io.BytesIO(archive_bytes)) as archive:
-        xml_name = next(
-            (name for name in archive.namelist() if name.endswith("_vpl.xml")),
-            None,
-        )
+        xml_name = next((name for name in archive.namelist() if name.endswith("_vpl.xml")), None)
         if not xml_name:
-            raise RuntimeError(f"{spec['id']} 找不到 *_vpl.xml")
-
+            raise RuntimeError(f"{spec.id}: zip archive does not contain a *_vpl.xml file")
         verses = parse_vpl_xml_verses(archive.read(xml_name))
 
     if not verses:
-        raise RuntimeError(f"{spec['id']} 沒有成功解析任何經文")
+        raise RuntimeError(f"{spec.id}: archive did not yield any verses")
 
-    print(f"[{spec['id']}] 完成，共 {len(verses):,} 節", flush=True)
-
-    return {
-        "translation": {
-            "id": spec["id"],
-            "short": spec["short"],
-            "name": spec["name"],
-            "language": spec["language"],
-            "sourceName": spec["source_name"],
-            "sourceUrl": spec["source_url"],
-            "sourceVersion": spec["provider_version"],
-            "downloadedAt": datetime.now(timezone.utc).isoformat(),
-        },
-        "metadata": {
-            "provider": spec["provider"],
-            "providerVersion": spec["provider_version"],
-            "verseCount": len(verses),
-        },
-        "verses": verses,
-    }
+    print(f"[{spec.id}] synced {len(verses):,} verses", flush=True)
+    return build_translation_payload(spec, verses)
 
 
-def write_translation_file(translation_id: str, payload: dict[str, Any]) -> None:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    target = OUTPUT_DIR / f"{translation_id}.json"
+def write_translation_file(output_dir: Path, spec: TranslationSpec, payload: dict[str, Any]) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    target = output_dir / f"{spec.id}.json"
     target.write_text(
         json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
         encoding="utf-8",
     )
-    print(f"已寫入 {target}", flush=True)
+    print(f"[{spec.id}] wrote {target}", flush=True)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Download Bible JSON files from FHL and VPL sources into public/data/bibles."
+    )
+    parser.add_argument(
+        "--only",
+        nargs="*",
+        default=[],
+        metavar="ID",
+        help="Translation ids to sync, e.g. --only cuv cnv lzz web bsb",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=str(DEFAULT_OUTPUT_DIR),
+        help="Output folder for generated JSON files.",
+    )
+    parser.add_argument(
+        "--fhl-delay",
+        type=float,
+        default=0.03,
+        help="Delay in seconds between FHL chapter requests.",
+    )
+    return parser.parse_args()
+
+
+def resolve_translation_specs(requested_ids: list[str]) -> list[TranslationSpec]:
+    if not requested_ids:
+        return ALL_TRANSLATIONS
+
+    resolved: list[TranslationSpec] = []
+    seen: set[str] = set()
+    for raw_id in requested_ids:
+        translation_id = raw_id.strip().lower()
+        if not translation_id or translation_id in seen:
+            continue
+        spec = TRANSLATION_BY_ID.get(translation_id)
+        if not spec:
+            valid = ", ".join(sorted(TRANSLATION_BY_ID))
+            raise SystemExit(f"Unknown translation id: {raw_id}. Valid ids: {valid}")
+        seen.add(translation_id)
+        resolved.append(spec)
+
+    return resolved
 
 
 def main() -> int:
-    print("開始同步本站使用的本機 JSON 譯本...", flush=True)
+    args = parse_args()
+    output_dir = Path(args.output_dir).resolve()
+    selected_specs = resolve_translation_specs(args.only)
 
-    for spec in FHL_TRANSLATIONS:
-        payload = build_fhl_translation(spec)
-        write_translation_file(spec["id"], payload)
+    print(f"Output directory: {output_dir}", flush=True)
+    print("Translations:", ", ".join(spec.id for spec in selected_specs), flush=True)
 
-    for spec in VPL_TRANSLATIONS:
-        payload = build_vpl_translation(spec)
-        write_translation_file(spec["id"], payload)
+    for spec in selected_specs:
+        if spec.kind == "fhl":
+            payload = build_fhl_translation(spec, delay_seconds=max(args.fhl_delay, 0.0))
+        elif spec.kind == "vpl":
+            payload = build_vpl_translation(spec)
+        else:
+            raise RuntimeError(f"Unsupported translation kind: {spec.kind}")
 
-    print("同步完成。", flush=True)
-    print("注意：NIV、ESV、新譯本、NLT、NCV / ICB、NIrV 目前沒有在這支腳本內自動下載。", flush=True)
-    print("原因是來源授權條件不一致，請以你自己的合法 JSON 匯入。", flush=True)
+        write_translation_file(output_dir, spec, payload)
+
+    print("Bible sync finished.", flush=True)
     return 0
 
 

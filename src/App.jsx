@@ -88,7 +88,7 @@ const FHL_ENGS_BY_BOOK_NUMBER = {
   66: 'Rev'
 }
 const MOBILE_HEADER_COLLAPSE_STORAGE_KEY = 'mobile-header-collapsed'
-const VISIBLE_VERSION_IDS = ['cuv', 'lzz', 'bbe', 'web', 'bsb', 'kjv', 'asv']
+const VISIBLE_VERSION_IDS = ['cuv', 'lzz', 'bbe', 'web', 'niv', 'esv', 'bsb', 'kjv', 'asv']
 const VISIBLE_VERSION_SET = new Set(VISIBLE_VERSION_IDS)
 
 function StatCard({ label, value, hint }) {
