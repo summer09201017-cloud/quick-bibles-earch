@@ -839,7 +839,7 @@ export default function App() {
 
       try {
         setAppStatus('正在載入目錄資料...')
-        const catalogResponse = await fetch('/data/catalog.json')
+        const catalogResponse = await fetch('/data/catalog.json', { cache: 'no-store' })
         const catalogJson = await catalogResponse.json()
         const catalogEntries = catalogJson.versions
           .filter((entry) => VISIBLE_VERSION_SET.has(entry.id))
@@ -857,7 +857,7 @@ export default function App() {
         setAppStatus('正在下載內建 JSON...')
         const builtInResponses = await Promise.all(
           catalogEntries.map(async (entry) => {
-            const response = await fetch(entry.file)
+            const response = await fetch(entry.file, { cache: 'no-store' })
             const payload = await response.json()
 
             return [

@@ -34,9 +34,10 @@ export default defineConfig({
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/data/'),
-            handler: 'StaleWhileRevalidate',
+            handler: 'NetworkFirst',
             options: {
               cacheName: 'bible-data',
+              networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 32,
                 maxAgeSeconds: 60 * 60 * 24 * 30
