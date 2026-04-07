@@ -1139,6 +1139,11 @@ export default function App() {
     })
   }
 
+  function switchActiveView(nextView) {
+    setActiveView(nextView)
+    setIsVersionPickerOpen(false)
+  }
+
   function openReaderLocation(location, options = {}) {
     const nextVerse = Number(location.verse)
 
@@ -1325,7 +1330,7 @@ export default function App() {
           <div className={`${isHeaderCollapsed ? 'mt-4' : 'mt-5'} flex flex-wrap gap-3`}>
             <button
               type="button"
-              onClick={() => setActiveView('reader')}
+              onClick={() => switchActiveView('reader')}
               className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
                 activeView === 'reader'
                   ? 'border-sky-400/40 bg-sky-100 text-sky-700'
@@ -1336,7 +1341,7 @@ export default function App() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveView('search')}
+              onClick={() => switchActiveView('search')}
               className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
                 activeView === 'search'
                   ? 'border-sky-400/40 bg-sky-100 text-sky-700'
