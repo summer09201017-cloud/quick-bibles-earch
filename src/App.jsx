@@ -135,20 +135,20 @@ function VersionPicker({
   const selectedVersionIdSet = new Set(selectedVersionIds)
 
   return (
-    <section className="mt-6 border border-slate-200 bg-white/90 p-5 shadow-glow sm:rounded-3xl">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <section className="mt-4 rounded-3xl border border-slate-200 bg-white/95 p-4 shadow-glow">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-bold text-slate-900">譯本切換</h2>
-          <p className="mt-1 text-sm text-slate-600">
-            點一下即可切換顯示譯本，閱讀器和搜尋結果會同步更新。至少保留一個譯本。
+          <h2 className="text-sm font-bold text-slate-900">譯本切換</h2>
+          <p className="mt-1 text-xs leading-5 text-slate-600">
+            點一下即可切換。至少保留一個譯本，閱讀器與搜尋結果會同步更新。
           </p>
         </div>
-        <div className="text-sm text-slate-500">
+        <div className="text-xs font-medium text-slate-500">
           已選 {selectedVersionIds.length} / {versions.length}
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
         {versions.map((version) => {
           const isSelected = selectedVersionIdSet.has(version.id)
           const isOnlySelected = isSelected && selectedVersionIds.length === 1
@@ -162,35 +162,35 @@ function VersionPicker({
               onClick={() => onToggle(version.id)}
               disabled={isOnlySelected}
               aria-pressed={isSelected}
-              className={`rounded-3xl border p-4 text-left transition ${
+              className={`rounded-2xl border px-3 py-3 text-left transition ${
                 isSelected
                   ? 'border-sky-400/40 bg-sky-500/10 shadow-glow'
                   : 'border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white'
               } ${isOnlySelected ? 'cursor-not-allowed opacity-80' : ''}`}
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start justify-between gap-2">
                 <span
                   className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${version.badge}`}
                 >
                   {version.short}
                 </span>
                 <span
-                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                  className={`rounded-full px-2 py-1 text-[11px] font-medium ${
                     isSelected ? 'bg-sky-100 text-sky-700' : 'bg-slate-200 text-slate-600'
                   }`}
                 >
-                  {isSelected ? '已勾選' : '未勾選'}
+                  {isSelected ? '已選' : '未選'}
                 </span>
               </div>
 
-              <div className="mt-3">
+              <div className="mt-2">
                 <div className="text-sm font-semibold text-slate-900">{version.name}</div>
-                <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
+                <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-slate-500">
                   {version.language}
                 </div>
               </div>
 
-              <div className="mt-3 text-xs text-slate-500">
+              <div className="mt-2 text-[11px] text-slate-500">
                 {hasLocalJson ? `本機 JSON ${verseCount.toLocaleString()} 節` : '目前沒有本機 JSON'}
               </div>
             </button>
@@ -687,6 +687,7 @@ export default function App() {
     key: '',
     token: 0
   })
+  const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(() => {
     if (typeof window === 'undefined') {
       return false
@@ -1264,7 +1265,7 @@ export default function App() {
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-base font-bold tracking-tight text-blue-700 sm:text-2xl">
-                多譯本關鍵字查詢
+                10譯本關鍵字查詢
               </h1>
             </div>
 
@@ -1344,15 +1345,28 @@ export default function App() {
             >
               關鍵字搜尋
             </button>
+            <button
+              type="button"
+              onClick={() => setIsVersionPickerOpen((current) => !current)}
+              className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+                isVersionPickerOpen
+                  ? 'border-sky-400/40 bg-sky-100 text-sky-700'
+                  : 'border-slate-300 bg-white/90 text-slate-700 hover:border-slate-400'
+              }`}
+            >
+              譯本切換
+            </button>
           </div>
-        </header>
 
-        <VersionPicker
-          versions={catalogState}
-          selectedVersionIds={selectedVersions}
-          versionsById={versionsById}
-          onToggle={toggleVersion}
-        />
+          {isVersionPickerOpen ? (
+            <VersionPicker
+              versions={catalogState}
+              selectedVersionIds={selectedVersions}
+              versionsById={versionsById}
+              onToggle={toggleVersion}
+            />
+          ) : null}
+        </header>
 
         <main
           className={`mt-6 grid flex-1 gap-6 ${
