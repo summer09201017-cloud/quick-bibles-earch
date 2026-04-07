@@ -88,8 +88,17 @@ const FHL_ENGS_BY_BOOK_NUMBER = {
   66: 'Rev'
 }
 const MOBILE_HEADER_COLLAPSE_STORAGE_KEY = 'mobile-header-collapsed'
-const VISIBLE_VERSION_IDS = ['cuv', 'lzz', 'bbe', 'web', 'niv', 'esv', 'bsb', 'kjv', 'asv']
+const VISIBLE_VERSION_IDS = ['cuv', 'niv', 'esv', 'lzz', 'cnv', 'bbe', 'web', 'bsb', 'kjv', 'asv']
 const VISIBLE_VERSION_SET = new Set(VISIBLE_VERSION_IDS)
+const VERSION_ORDER_LOOKUP = new Map(VISIBLE_VERSION_IDS.map((id, index) => [id, index]))
+
+function sortVersionIds(versionIds) {
+  return [...versionIds].sort((left, right) => {
+    const leftIndex = VERSION_ORDER_LOOKUP.get(left) ?? Number.MAX_SAFE_INTEGER
+    const rightIndex = VERSION_ORDER_LOOKUP.get(right) ?? Number.MAX_SAFE_INTEGER
+    return leftIndex - rightIndex
+  })
+}
 
 function StatCard({ label, value, hint }) {
   return (
@@ -114,6 +123,81 @@ function Chip({ active, children, onClick, className = '' }) {
     >
       {children}
     </button>
+  )
+}
+
+function VersionPicker({
+  versions,
+  selectedVersionIds,
+  versionsById,
+  onToggle
+}) {
+  const selectedVersionIdSet = new Set(selectedVersionIds)
+
+  return (
+    <section className="mt-6 border border-slate-200 bg-white/90 p-5 shadow-glow sm:rounded-3xl">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">譯本切換</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            點一下即可切換顯示譯本，閱讀器和搜尋結果會同步更新。至少保留一個譯本。
+          </p>
+        </div>
+        <div className="text-sm text-slate-500">
+          已選 {selectedVersionIds.length} / {versions.length}
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {versions.map((version) => {
+          const isSelected = selectedVersionIdSet.has(version.id)
+          const isOnlySelected = isSelected && selectedVersionIds.length === 1
+          const verseCount = versionsById[version.id]?.verses?.length ?? 0
+          const hasLocalJson = verseCount > 0
+
+          return (
+            <button
+              key={version.id}
+              type="button"
+              onClick={() => onToggle(version.id)}
+              disabled={isOnlySelected}
+              aria-pressed={isSelected}
+              className={`rounded-3xl border p-4 text-left transition ${
+                isSelected
+                  ? 'border-sky-400/40 bg-sky-500/10 shadow-glow'
+                  : 'border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white'
+              } ${isOnlySelected ? 'cursor-not-allowed opacity-80' : ''}`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <span
+                  className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${version.badge}`}
+                >
+                  {version.short}
+                </span>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                    isSelected ? 'bg-sky-100 text-sky-700' : 'bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  {isSelected ? '已勾選' : '未勾選'}
+                </span>
+              </div>
+
+              <div className="mt-3">
+                <div className="text-sm font-semibold text-slate-900">{version.name}</div>
+                <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
+                  {version.language}
+                </div>
+              </div>
+
+              <div className="mt-3 text-xs text-slate-500">
+                {hasLocalJson ? `本機 JSON ${verseCount.toLocaleString()} 節` : '目前沒有本機 JSON'}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
@@ -569,7 +653,7 @@ export default function App() {
   )
   const [versionsById, setVersionsById] = useState({})
   const [selectedVersions, setSelectedVersions] = useState(
-    DEFAULT_SELECTED_VERSIONS.filter((item) => VISIBLE_VERSION_SET.has(item))
+    sortVersionIds(DEFAULT_SELECTED_VERSIONS.filter((item) => VISIBLE_VERSION_SET.has(item)))
   )
   const [query, setQuery] = useState('')
   const [exactPhrase, setExactPhrase] = useState(false)
@@ -763,6 +847,11 @@ export default function App() {
             ...VERSION_LOOKUP[entry.id],
             ...entry
           }))
+          .sort(
+            (left, right) =>
+              (VERSION_ORDER_LOOKUP.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+              (VERSION_ORDER_LOOKUP.get(right.id) ?? Number.MAX_SAFE_INTEGER)
+          )
         setCatalogState(catalogEntries)
 
         setAppStatus('正在下載內建 JSON...')
@@ -1045,7 +1134,7 @@ export default function App() {
         return current.filter((id) => id !== versionId)
       }
 
-      return [...current, versionId]
+      return sortVersionIds([...current, versionId])
     })
   }
 
@@ -1257,6 +1346,13 @@ export default function App() {
             </button>
           </div>
         </header>
+
+        <VersionPicker
+          versions={catalogState}
+          selectedVersionIds={selectedVersions}
+          versionsById={versionsById}
+          onToggle={toggleVersion}
+        />
 
         <main
           className={`mt-6 grid flex-1 gap-6 ${

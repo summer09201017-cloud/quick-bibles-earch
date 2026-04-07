@@ -11,7 +11,7 @@ export const VERSION_CATALOG = [
     short: '新譯本',
     name: '中文新譯本',
     language: '中文',
-    badge: 'bg-amber-500/15 text-amber-200 ring-amber-400/25'
+    badge: 'bg-amber-500/15 text-slate-900 ring-amber-400/25'
   },
   {
     id: 'lzz',
@@ -67,14 +67,14 @@ export const VERSION_CATALOG = [
     short: 'NIV',
     name: 'New International Version',
     language: 'English',
-    badge: 'bg-sky-500/15 text-sky-200 ring-sky-400/25'
+    badge: 'bg-sky-500/15 text-slate-900 ring-sky-400/25'
   },
   {
     id: 'esv',
     short: 'ESV',
     name: 'English Standard Version',
     language: 'English',
-    badge: 'bg-indigo-500/15 text-indigo-200 ring-indigo-400/25'
+    badge: 'bg-indigo-500/15 text-slate-900 ring-indigo-400/25'
   }
 ]
 
@@ -82,7 +82,7 @@ export const VERSION_LOOKUP = Object.fromEntries(
   VERSION_CATALOG.map((item) => [item.id, item])
 )
 
-export const DEFAULT_SELECTED_VERSIONS = ['cuv', 'lzz', 'bbe', 'web']
+export const DEFAULT_SELECTED_VERSIONS = ['cuv', 'niv', 'esv', 'lzz', 'cnv']
 export const DEMO_SCHEMA_URL = '/data/schema/bible-json-example.json'
 export const DB_NAME = 'bible-keyword-search'
 export const DB_VERSION = 1
