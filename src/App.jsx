@@ -1144,6 +1144,15 @@ export default function App() {
     setIsVersionPickerOpen(false)
   }
 
+  function toggleHeaderCollapsed() {
+    const nextCollapsed = !isHeaderCollapsed
+    setIsHeaderCollapsed(nextCollapsed)
+
+    if (nextCollapsed) {
+      setIsVersionPickerOpen(false)
+    }
+  }
+
   function openReaderLocation(location, options = {}) {
     const nextVerse = Number(location.verse)
 
@@ -1263,25 +1272,35 @@ export default function App() {
     <div className="soft-grid min-h-screen bg-slate-50 text-slate-800">
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-0 pb-10 pt-0 sm:px-6 sm:pt-6 lg:px-8">
         <header
-          className={`glass sticky top-0 z-20 border border-slate-200/80 shadow-glow sm:top-3 sm:rounded-3xl ${
+          className={`glass relative sticky top-0 z-20 border border-slate-200/80 shadow-glow sm:top-3 sm:rounded-3xl ${
             isHeaderCollapsed ? 'rounded-none px-4 py-3 sm:p-3' : 'rounded-none px-4 py-5 sm:p-5'
           }`}
         >
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <h1 className="truncate text-base font-bold tracking-tight text-blue-700 sm:text-2xl">
-                10譯本關鍵字查詢
-              </h1>
-            </div>
+          {!isHeaderCollapsed ? (
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <h1 className="truncate pr-2 text-base font-bold tracking-tight text-blue-700 sm:text-2xl">
+                  10譯本關鍵字查詢
+                </h1>
+              </div>
 
+              <button
+                type="button"
+                onClick={toggleHeaderCollapsed}
+                className="shrink-0 rounded-2xl border border-slate-300 bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 transition hover:border-slate-400 sm:px-4 sm:py-2.5 sm:text-sm"
+              >
+                收合
+              </button>
+            </div>
+          ) : (
             <button
               type="button"
-              onClick={() => setIsHeaderCollapsed((current) => !current)}
-              className="shrink-0 rounded-2xl border border-slate-300 bg-white/90 px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:border-slate-400"
+              onClick={toggleHeaderCollapsed}
+              className="absolute right-4 top-3 z-10 rounded-full border border-slate-300 bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 sm:right-3 sm:top-3 sm:px-3 sm:py-1.5 sm:text-xs"
             >
-              {isHeaderCollapsed ? '展開標題' : '收合標題'}
+              展開
             </button>
-          </div>
+          )}
 
           {!isHeaderCollapsed ? (
             <>
@@ -1327,11 +1346,15 @@ export default function App() {
             </>
           ) : null}
 
-          <div className={`${isHeaderCollapsed ? 'mt-4' : 'mt-5'} flex flex-wrap gap-3`}>
+          <div
+            className={`grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-3 ${
+              isHeaderCollapsed ? 'mt-0 pr-16 sm:mt-4 sm:pr-0' : 'mt-5'
+            }`}
+          >
             <button
               type="button"
               onClick={() => switchActiveView('reader')}
-              className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+              className={`w-full min-w-0 rounded-2xl border px-2 py-2 text-center text-xs font-semibold leading-5 transition sm:w-auto sm:px-4 sm:py-2.5 sm:text-sm ${
                 activeView === 'reader'
                   ? 'border-sky-400/40 bg-sky-100 text-sky-700'
                   : 'border-slate-300 bg-white/90 text-slate-700 hover:border-slate-400'
@@ -1342,7 +1365,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => switchActiveView('search')}
-              className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+              className={`w-full min-w-0 rounded-2xl border px-2 py-2 text-center text-xs font-semibold leading-5 transition sm:w-auto sm:px-4 sm:py-2.5 sm:text-sm ${
                 activeView === 'search'
                   ? 'border-sky-400/40 bg-sky-100 text-sky-700'
                   : 'border-slate-300 bg-white/90 text-slate-700 hover:border-slate-400'
@@ -1353,7 +1376,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setIsVersionPickerOpen((current) => !current)}
-              className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${
+              className={`w-full min-w-0 rounded-2xl border px-2 py-2 text-center text-xs font-semibold leading-5 transition sm:w-auto sm:px-4 sm:py-2.5 sm:text-sm ${
                 isVersionPickerOpen
                   ? 'border-sky-400/40 bg-sky-100 text-sky-700'
                   : 'border-slate-300 bg-white/90 text-slate-700 hover:border-slate-400'
