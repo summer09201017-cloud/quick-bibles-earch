@@ -1758,7 +1758,7 @@ export default function App() {
                                         onClick={() => jumpToReaderFromResult(result)}
                                         className="w-full text-left"
                                       >
-                                        <p className="m-0 text-sm leading-7 text-slate-900 transition hover:text-sky-800 sm:text-[15px]">
+                                        <p className="m-0 text-[15px] leading-8 text-slate-900 transition hover:text-sky-800 sm:text-base">
                                           {highlightText(line.text, query, exactPhrase)}
                                         </p>
                                       </button>
