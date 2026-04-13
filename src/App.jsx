@@ -88,9 +88,24 @@ const FHL_ENGS_BY_BOOK_NUMBER = {
   66: 'Rev'
 }
 const MOBILE_HEADER_COLLAPSE_STORAGE_KEY = 'mobile-header-collapsed'
+const VERSE_FONT_SIZE_STORAGE_KEY = 'verse-font-size'
+const MIN_VERSE_FONT_SIZE = 12
+const MAX_VERSE_FONT_SIZE = 30
+const DEFAULT_MOBILE_VERSE_FONT_SIZE = 18
+const DEFAULT_DESKTOP_VERSE_FONT_SIZE = 20
 const VISIBLE_VERSION_IDS = ['cuv', 'niv', 'esv', 'lzz', 'cnv', 'bbe', 'web', 'bsb', 'kjv', 'asv']
 const VISIBLE_VERSION_SET = new Set(VISIBLE_VERSION_IDS)
 const VERSION_ORDER_LOOKUP = new Map(VISIBLE_VERSION_IDS.map((id, index) => [id, index]))
+
+function clampVerseFontSize(value) {
+  const normalized = Math.round(Number(value))
+
+  if (!Number.isFinite(normalized)) {
+    return DEFAULT_MOBILE_VERSE_FONT_SIZE
+  }
+
+  return Math.min(MAX_VERSE_FONT_SIZE, Math.max(MIN_VERSE_FONT_SIZE, normalized))
+}
 
 function sortVersionIds(versionIds) {
   return [...versionIds].sort((left, right) => {
@@ -465,6 +480,59 @@ function ReaderActionBar({ previousChapter, nextChapter, selectedCount, onCopy, 
   )
 }
 
+function VerseFontSizeControl({ value, onChange }) {
+  const canDecrease = value > MIN_VERSE_FONT_SIZE
+  const canIncrease = value < MAX_VERSE_FONT_SIZE
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/90 px-4 py-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="text-xs uppercase tracking-[0.24em] text-slate-500">字級</div>
+          <div className="mt-1 text-sm font-semibold text-slate-900">經文字體 {value}px</div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onChange(value - 1)}
+            disabled={!canDecrease}
+            className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+          >
+            A-
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange(value + 1)}
+            disabled={!canIncrease}
+            className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+          >
+            A+
+          </button>
+        </div>
+      </div>
+
+      <label className="mt-3 block">
+        <span className="sr-only">調整經文字體大小</span>
+        <input
+          type="range"
+          min={MIN_VERSE_FONT_SIZE}
+          max={MAX_VERSE_FONT_SIZE}
+          step="1"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-2 w-full cursor-pointer accent-sky-600"
+        />
+      </label>
+
+      <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
+        <span>{MIN_VERSE_FONT_SIZE}px</span>
+        <span>{MAX_VERSE_FONT_SIZE}px</span>
+      </div>
+    </div>
+  )
+}
+
 function normalizeImportedVerse(verse) {
   return {
     ...verse,
@@ -700,6 +768,20 @@ export default function App() {
 
     return window.matchMedia('(max-width: 1023px)').matches
   })
+  const [verseFontSize, setVerseFontSize] = useState(() => {
+    if (typeof window === 'undefined') {
+      return DEFAULT_MOBILE_VERSE_FONT_SIZE
+    }
+
+    const saved = window.localStorage.getItem(VERSE_FONT_SIZE_STORAGE_KEY)
+    if (saved !== null) {
+      return clampVerseFontSize(saved)
+    }
+
+    return window.matchMedia('(max-width: 1023px)').matches
+      ? DEFAULT_MOBILE_VERSE_FONT_SIZE
+      : DEFAULT_DESKTOP_VERSE_FONT_SIZE
+  })
 
   const availableVersions = useMemo(
     () => catalogState.map((item) => versionsById[item.id]).filter(Boolean),
@@ -754,6 +836,13 @@ export default function App() {
   const readerUnavailableVersionIds = useMemo(
     () => selectedVersions.filter((id) => !localVersionIds.includes(id)),
     [localVersionIds, selectedVersions]
+  )
+  const verseTextStyle = useMemo(
+    () => ({
+      fontSize: `${verseFontSize}px`,
+      lineHeight: 1.8
+    }),
+    [verseFontSize]
   )
   const currentReaderBook =
     readerCatalog.books.find((book) => book.bookNumber === readerSelection.bookNumber) ?? null
@@ -1053,6 +1142,10 @@ export default function App() {
     )
   }, [isHeaderCollapsed])
 
+  useEffect(() => {
+    window.localStorage.setItem(VERSE_FONT_SIZE_STORAGE_KEY, String(verseFontSize))
+  }, [verseFontSize])
+
   async function handleImport(event) {
     const files = Array.from(event.target.files ?? [])
     if (files.length === 0) {
@@ -1142,6 +1235,10 @@ export default function App() {
   function switchActiveView(nextView) {
     setActiveView(nextView)
     setIsVersionPickerOpen(false)
+  }
+
+  function handleVerseFontSizeChange(nextValue) {
+    setVerseFontSize(clampVerseFontSize(nextValue))
   }
 
   function toggleHeaderCollapsed() {
@@ -1472,6 +1569,13 @@ export default function App() {
                   </div>
                 </div>
 
+                <div className="mt-4">
+                  <VerseFontSizeControl
+                    value={verseFontSize}
+                    onChange={handleVerseFontSizeChange}
+                  />
+                </div>
+
                 <div className="mt-5">
                   {isLoadingApp ? (
                     <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
@@ -1596,7 +1700,7 @@ export default function App() {
                                             {version.short}
                                           </span>
                                         </div>
-                                        <p className="m-0 text-sm leading-7 text-slate-900 sm:text-[15px]">
+                                        <p className="m-0 text-slate-900" style={verseTextStyle}>
                                           {highlightText(line.text, query, exactPhrase)}
                                         </p>
                                       </div>
@@ -1662,6 +1766,13 @@ export default function App() {
                     </button>
                     <div className="text-sm text-slate-500">勾選核取方塊後，可一次複製多節經文</div>
                   </div>
+                </div>
+
+                <div className="mt-4">
+                  <VerseFontSizeControl
+                    value={verseFontSize}
+                    onChange={handleVerseFontSizeChange}
+                  />
                 </div>
 
                 <div className="mt-5">
@@ -1758,7 +1869,10 @@ export default function App() {
                                         onClick={() => jumpToReaderFromResult(result)}
                                         className="w-full text-left"
                                       >
-                                        <p className="m-0 text-[18px] leading-9 text-slate-900 transition hover:text-sky-800 sm:text-[20px]">
+                                        <p
+                                          className="m-0 text-slate-900 transition hover:text-sky-800"
+                                          style={verseTextStyle}
+                                        >
                                           {highlightText(line.text, query, exactPhrase)}
                                         </p>
                                       </button>
