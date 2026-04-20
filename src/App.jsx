@@ -89,8 +89,8 @@ const FHL_ENGS_BY_BOOK_NUMBER = {
 }
 const MOBILE_HEADER_COLLAPSE_STORAGE_KEY = 'mobile-header-collapsed'
 const VERSE_FONT_SIZE_STORAGE_KEY = 'verse-font-size'
-const MIN_VERSE_FONT_SIZE = 12
-const MAX_VERSE_FONT_SIZE = 30
+const MIN_VERSE_FONT_SIZE = 10
+const MAX_VERSE_FONT_SIZE = 40
 const DEFAULT_MOBILE_VERSE_FONT_SIZE = 18
 const DEFAULT_DESKTOP_VERSE_FONT_SIZE = 20
 const VISIBLE_VERSION_IDS = ['cuv', 'niv', 'esv', 'lzz', 'cnv', 'bbe', 'web', 'bsb', 'kjv', 'asv']
@@ -485,11 +485,11 @@ function VerseFontSizeControl({ value, onChange }) {
   const canIncrease = value < MAX_VERSE_FONT_SIZE
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/90 px-4 py-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+    <div className="rounded-2xl border border-slate-200 bg-white/95 px-3 py-3 shadow-sm sm:px-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
           <div className="text-xs uppercase tracking-[0.24em] text-slate-500">字級</div>
-          <div className="mt-1 text-sm font-semibold text-slate-900">經文字體 {value}px</div>
+          <div className="text-sm font-semibold text-slate-900">{value}px</div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -512,7 +512,8 @@ function VerseFontSizeControl({ value, onChange }) {
         </div>
       </div>
 
-      <label className="mt-3 block">
+      <label className="mt-2 flex items-center gap-3">
+        <span className="text-[11px] text-slate-500">{MIN_VERSE_FONT_SIZE}px</span>
         <span className="sr-only">調整經文字體大小</span>
         <input
           type="range"
@@ -521,14 +522,10 @@ function VerseFontSizeControl({ value, onChange }) {
           step="1"
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-2 w-full cursor-pointer accent-sky-600"
+          className="h-2 flex-1 cursor-pointer accent-sky-600"
         />
+        <span className="text-[11px] text-slate-500">{MAX_VERSE_FONT_SIZE}px</span>
       </label>
-
-      <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
-        <span>{MIN_VERSE_FONT_SIZE}px</span>
-        <span>{MAX_VERSE_FONT_SIZE}px</span>
-      </div>
     </div>
   )
 }
@@ -1483,6 +1480,13 @@ export default function App() {
             </button>
           </div>
 
+          <div className="mt-3">
+            <VerseFontSizeControl
+              value={verseFontSize}
+              onChange={handleVerseFontSizeChange}
+            />
+          </div>
+
           {isVersionPickerOpen ? (
             <VersionPicker
               versions={catalogState}
@@ -1567,13 +1571,6 @@ export default function App() {
                       ? `${currentReaderChapter.bookLabel} ${currentReaderChapter.chapter} 章`
                       : '請先選擇章節'}
                   </div>
-                </div>
-
-                <div className="mt-4">
-                  <VerseFontSizeControl
-                    value={verseFontSize}
-                    onChange={handleVerseFontSizeChange}
-                  />
                 </div>
 
                 <div className="mt-5">
@@ -1766,13 +1763,6 @@ export default function App() {
                     </button>
                     <div className="text-sm text-slate-500">勾選核取方塊後，可一次複製多節經文</div>
                   </div>
-                </div>
-
-                <div className="mt-4">
-                  <VerseFontSizeControl
-                    value={verseFontSize}
-                    onChange={handleVerseFontSizeChange}
-                  />
                 </div>
 
                 <div className="mt-5">
