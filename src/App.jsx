@@ -150,7 +150,7 @@ function VersionPicker({
   const selectedVersionIdSet = new Set(selectedVersionIds)
 
   return (
-    <section className="mt-4 rounded-3xl border border-slate-200 bg-white/95 p-4 shadow-glow">
+    <section className="mt-4 -mx-4 rounded-none border-x-0 border-y border-slate-200 bg-white/95 p-4 shadow-glow sm:mx-0 sm:rounded-3xl sm:border">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-sm font-bold text-slate-900">譯本切換</h2>
@@ -435,7 +435,7 @@ async function copyTextToClipboard(text) {
 
 function ReaderActionBar({ previousChapter, nextChapter, selectedCount, onCopy, onNavigate }) {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/90 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="-mx-5 flex flex-col gap-3 rounded-none border-x-0 border-y border-slate-200 bg-slate-50/90 px-5 py-3 sm:mx-0 sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:border sm:px-4">
       <div className="flex flex-wrap items-center gap-3 text-sm">
         {previousChapter ? (
           <a
@@ -485,7 +485,7 @@ function VerseFontSizeControl({ value, onChange }) {
   const canIncrease = value < MAX_VERSE_FONT_SIZE
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white/95 px-3 py-3 shadow-sm sm:px-4">
+    <div className="-mx-4 rounded-none border-x-0 border-y border-slate-200 bg-white/95 px-4 py-3 shadow-sm sm:mx-0 sm:rounded-2xl sm:border sm:px-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <div className="text-xs uppercase tracking-[0.24em] text-slate-500">字級</div>
@@ -1441,8 +1441,8 @@ export default function App() {
           ) : null}
 
           <div
-            className={`grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-3 ${
-              isHeaderCollapsed ? 'mt-0 pr-16 sm:mt-4 sm:pr-0' : 'mt-5'
+            className={`-mx-4 grid grid-cols-3 gap-2 px-4 sm:mx-0 sm:flex sm:flex-wrap sm:gap-3 sm:px-0 ${
+              isHeaderCollapsed ? 'mt-0 pr-20 sm:mt-4 sm:pr-0' : 'mt-5'
             }`}
           >
             <button
@@ -1514,21 +1514,25 @@ export default function App() {
                   </div>
                 </div>
 
-                <label className="mt-5 block">
+                <label className="mt-5 block -mx-5 px-5 sm:mx-0 sm:px-0">
                   <span className="mb-2 block text-sm font-medium text-slate-800">關鍵字 / 片語</span>
                   <input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="例如：grace、與神同行、God so loved"
-                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-900 outline-none transition placeholder:text-slate-500 focus:border-sky-400/70"
+                    className="w-full rounded-none border-x-0 border-y border-slate-300 bg-white px-5 py-3 text-base text-slate-900 outline-none transition placeholder:text-slate-500 focus:border-sky-400/70 sm:rounded-2xl sm:border"
                   />
                 </label>
 
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <Chip active={exactPhrase} onClick={() => setExactPhrase((current) => !current)}>
+                <div className="mt-4 -mx-5 flex flex-wrap gap-3 px-5 sm:mx-0 sm:px-0">
+                  <Chip
+                    active={exactPhrase}
+                    onClick={() => setExactPhrase((current) => !current)}
+                    className="w-full justify-center rounded-none border-x-0 sm:w-auto sm:justify-start sm:rounded-full sm:border-x"
+                  >
                     {exactPhrase ? '片語完全比對' : '多關鍵字 AND 搜尋'}
                   </Chip>
-                  <label className="flex items-center gap-2 rounded-full border border-slate-300 bg-slate-50/90 px-4 py-2 text-sm text-slate-700">
+                  <label className="flex w-full items-center justify-between gap-2 rounded-none border-x-0 border-y border-slate-300 bg-slate-50/90 px-5 py-2 text-sm text-slate-700 sm:w-auto sm:justify-start sm:rounded-full sm:border-x sm:px-4">
                     <span>上限</span>
                     <select
                       value={limit}
@@ -1575,29 +1579,29 @@ export default function App() {
 
                 <div className="mt-5">
                   {isLoadingApp ? (
-                    <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
+                    <div className="-mx-5 rounded-none border-x-0 border-y border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600 sm:mx-0 sm:rounded-3xl sm:border">
                       正在載入本機譯本與搜尋索引...
                     </div>
                   ) : noLoadedData ? (
-                    <div className="rounded-3xl border border-amber-400/20 bg-amber-400/10 px-5 py-10 text-center">
+                    <div className="-mx-5 rounded-none border-x-0 border-y border-amber-400/20 bg-amber-400/10 px-5 py-10 text-center sm:mx-0 sm:rounded-3xl sm:border">
                       <div className="text-lg font-semibold text-amber-700">目前沒有可用的本機譯本</div>
                       <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-amber-700">
                         請先確認 `public/data/bibles` 內有合法 JSON 檔，系統載入後就能開始閱讀與搜尋。
                       </p>
                     </div>
                   ) : !currentReaderChapter ? (
-                    <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
+                    <div className="-mx-5 rounded-none border-x-0 border-y border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600 sm:mx-0 sm:rounded-3xl sm:border">
                       請先選擇書卷和章節，閱讀器就會顯示對應內容。
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div className="grid gap-3 md:grid-cols-2 md:pl-6">
+                      <div className="-mx-5 grid gap-3 px-5 sm:mx-0 sm:px-0 md:grid-cols-2 md:pl-6">
                         <label className="block">
                           <span className="mb-2 block text-sm font-medium text-slate-800">書卷</span>
                           <select
                             value={readerSelection.bookNumber ?? ''}
                             onChange={handleReaderBookChange}
-                            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400/70"
+                            className="w-full rounded-none border-x-0 border-y border-slate-300 bg-white px-5 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400/70 sm:rounded-2xl sm:border sm:px-4"
                           >
                             {readerCatalog.books.map((book) => (
                               <option key={book.bookNumber} value={book.bookNumber} className="bg-white">
@@ -1612,7 +1616,7 @@ export default function App() {
                           <select
                             value={readerSelection.chapter ?? ''}
                             onChange={handleReaderChapterChange}
-                            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400/70"
+                            className="w-full rounded-none border-x-0 border-y border-slate-300 bg-white px-5 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400/70 sm:rounded-2xl sm:border sm:px-4"
                           >
                             {currentReaderBook?.chapters.map((chapter) => (
                               <option key={chapter.key} value={chapter.chapter} className="bg-white">
@@ -1624,7 +1628,7 @@ export default function App() {
                       </div>
 
                       {readerUnavailableVersionIds.length > 0 ? (
-                        <div className="rounded-2xl border border-sky-400/20 bg-sky-500/10 px-4 py-3 text-sm leading-6 text-sky-700">
+                        <div className="-mx-5 rounded-none border-x-0 border-y border-sky-400/20 bg-sky-500/10 px-5 py-3 text-sm leading-6 text-sky-700 sm:mx-0 sm:rounded-2xl sm:border sm:px-4">
                           下列譯本目前沒有本機 JSON，所以閱讀器暫時不顯示：
                           {readerUnavailableVersionIds
                             .map((id) => VERSION_LOOKUP[id]?.short ?? id)
@@ -1767,28 +1771,28 @@ export default function App() {
 
                 <div className="mt-5">
                   {isLoadingApp ? (
-                    <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
+                    <div className="-mx-5 rounded-none border-x-0 border-y border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600 sm:mx-0 sm:rounded-3xl sm:border">
                       正在載入本機譯本與搜尋索引...
                     </div>
                   ) : noLoadedData ? (
-                    <div className="rounded-3xl border border-amber-400/20 bg-amber-400/10 px-5 py-10 text-center">
+                    <div className="-mx-5 rounded-none border-x-0 border-y border-amber-400/20 bg-amber-400/10 px-5 py-10 text-center sm:mx-0 sm:rounded-3xl sm:border">
                       <div className="text-lg font-semibold text-amber-700">目前沒有可用的本機譯本</div>
                       <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-amber-700">
                         請先確認 `public/data/bibles` 內有合法 JSON 檔，系統載入後就能開始搜尋。
                       </p>
                     </div>
                   ) : !query.trim() ? (
-                    <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
+                    <div className="-mx-5 rounded-none border-x-0 border-y border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600 sm:mx-0 sm:rounded-3xl sm:border">
                       先輸入關鍵字，例如 <span className="text-slate-900">grace</span>、
                       <span className="text-slate-900"> 與神同行 </span>或
                       <span className="text-slate-900"> God so loved </span>?
                     </div>
                   ) : searchState.requestState === 'loading' ? (
-                    <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
+                    <div className="-mx-5 rounded-none border-x-0 border-y border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600 sm:mx-0 sm:rounded-3xl sm:border">
                       正在搜尋中...
                     </div>
                   ) : mergedResults.length === 0 ? (
-                    <div className="rounded-3xl border border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600">
+                    <div className="-mx-5 rounded-none border-x-0 border-y border-slate-200 bg-slate-50/90 px-5 py-12 text-center text-slate-600 sm:mx-0 sm:rounded-3xl sm:border">
                       目前找不到符合條件的經文，請試試其他關鍵字或改用片語搜尋。
                     </div>
                   ) : (
