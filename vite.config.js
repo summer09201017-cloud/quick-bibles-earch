@@ -2,6 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const PWA_CACHE_VERSION = 'v4'
+const APP_SHELL_CACHE_NAME = `app-shell-${PWA_CACHE_VERSION}`
+const BIBLE_DATA_CACHE_NAME = `bible-data-${PWA_CACHE_VERSION}`
+
 export default defineConfig({
   plugins: [
     react(),
@@ -30,13 +34,28 @@ export default defineConfig({
         ]
       },
       workbox: {
+        cacheId: `quick-bibles-earch-${PWA_CACHE_VERSION}`,
+        cleanupOutdatedCaches: true,
+        navigateFallback: null,
         globPatterns: ['**/*.{js,css,html,png,svg,ico,webmanifest}'],
         runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: APP_SHELL_CACHE_NAME,
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 8,
+                maxAgeSeconds: 60 * 60 * 24 * 7
+              }
+            }
+          },
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/data/'),
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'bible-data',
+              cacheName: BIBLE_DATA_CACHE_NAME,
               networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 32,
