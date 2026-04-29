@@ -481,38 +481,9 @@ function ReaderActionBar({ previousChapter, nextChapter, selectedCount, onCopy, 
 }
 
 function VerseFontSizeControl({ value, onChange }) {
-  const canDecrease = value > MIN_VERSE_FONT_SIZE
-  const canIncrease = value < MAX_VERSE_FONT_SIZE
-
   return (
     <div className="-mx-4 rounded-none border-x-0 border-y border-slate-200 bg-white/95 px-4 py-3 shadow-sm sm:mx-0 sm:rounded-2xl sm:border sm:px-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <div className="text-xs uppercase tracking-[0.24em] text-slate-500">字級</div>
-          <div className="text-sm font-semibold text-slate-900">{value}px</div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onChange(value - 1)}
-            disabled={!canDecrease}
-            className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
-          >
-            A-
-          </button>
-          <button
-            type="button"
-            onClick={() => onChange(value + 1)}
-            disabled={!canIncrease}
-            className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
-          >
-            A+
-          </button>
-        </div>
-      </div>
-
-      <label className="mt-2 flex items-center gap-3">
+      <label className="flex items-center gap-3">
         <span className="text-[11px] text-slate-500">{MIN_VERSE_FONT_SIZE}px</span>
         <span className="sr-only">調整經文字體大小</span>
         <input
@@ -710,6 +681,8 @@ function useInstallPrompt() {
 export default function App() {
   const searchWorkerRef = useRef(null)
   const builtInVersionsRef = useRef({})
+  const catalogEntriesRef = useRef([])
+  const inFlightLoadsRef = useRef(new Map())
   const requestIdRef = useRef(0)
   const { canInstall, triggerInstall } = useInstallPrompt()
 
@@ -920,6 +893,56 @@ export default function App() {
     setApiBibleConfig(loadApiBibleConfig())
   }, [])
 
+  async function ensureVersionLoaded(versionId) {
+    if (builtInVersionsRef.current[versionId]) {
+      return
+    }
+
+    const inFlight = inFlightLoadsRef.current.get(versionId)
+    if (inFlight) {
+      return inFlight
+    }
+
+    const entry = catalogEntriesRef.current.find((item) => item.id === versionId)
+    if (!entry) {
+      return
+    }
+
+    const loadPromise = (async () => {
+      try {
+        const response = await fetch(entry.file, { cache: 'no-store' })
+        const payload = await response.json()
+        const versionData = {
+          ...payload,
+          translation: {
+            ...VERSION_LOOKUP[versionId],
+            ...payload.translation
+          },
+          source: 'bundled'
+        }
+
+        builtInVersionsRef.current[versionId] = versionData
+        setVersionsById((current) => {
+          const stored = current[versionId]
+          if (stored?.source === 'indexeddb') {
+            return current
+          }
+          return {
+            ...current,
+            [versionId]: versionData
+          }
+        })
+      } catch (error) {
+        console.error(`載入 ${versionId} 失敗`, error)
+      } finally {
+        inFlightLoadsRef.current.delete(versionId)
+      }
+    })()
+
+    inFlightLoadsRef.current.set(versionId, loadPromise)
+    return loadPromise
+  }
+
   useEffect(() => {
     async function bootstrap() {
       setIsLoadingApp(true)
@@ -939,11 +962,21 @@ export default function App() {
               (VERSION_ORDER_LOOKUP.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
               (VERSION_ORDER_LOOKUP.get(right.id) ?? Number.MAX_SAFE_INTEGER)
           )
+        catalogEntriesRef.current = catalogEntries
         setCatalogState(catalogEntries)
 
-        setAppStatus('正在下載內建 JSON...')
+        setAppStatus('正在載入本機資料...')
+        const storedVersions = await getAllStoredVersions()
+        const storedMap = Object.fromEntries(storedVersions.map((item) => [item.id, item]))
+
+        const initialIds = new Set(selectedVersions)
+        const initialEntries = catalogEntries.filter(
+          (entry) => initialIds.has(entry.id) && !storedMap[entry.id]
+        )
+
+        setAppStatus('正在下載已選譯本 JSON...')
         const builtInResponses = await Promise.all(
-          catalogEntries.map(async (entry) => {
+          initialEntries.map(async (entry) => {
             const response = await fetch(entry.file, { cache: 'no-store' })
             const payload = await response.json()
 
@@ -962,10 +995,6 @@ export default function App() {
         )
 
         builtInVersionsRef.current = Object.fromEntries(builtInResponses)
-
-        setAppStatus('正在載入本機資料...')
-        const storedVersions = await getAllStoredVersions()
-        const storedMap = Object.fromEntries(storedVersions.map((item) => [item.id, item]))
 
         setVersionsById(
           mergeVersionState(catalogEntries, builtInVersionsRef.current, storedMap)
@@ -1225,6 +1254,7 @@ export default function App() {
         return current.filter((id) => id !== versionId)
       }
 
+      ensureVersionLoaded(versionId)
       return sortVersionIds([...current, versionId])
     })
   }
