@@ -3,3 +3,9 @@ dist
 .vite
 .netlify
 .codex-temp
+.codex-chrome-profile
+.codex-edge-profile
+.claude/
+build.log
+deploy.ps1
+__pycache__

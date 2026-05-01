@@ -3,13 +3,13 @@
 ### 本機預覽一行版
 
 ```powershell
-Set-Location -LiteralPath 'C:\Users\HFP\Desktop\8譯本聖經關鍵字查詢CO'; & 'C:\Program Files\nodejs\npm.cmd' run build; & 'C:\Program Files\nodejs\npm.cmd' run preview
+Set-Location -LiteralPath 'C:\Users\HFP\Downloads\10譯本聖經關鍵字查詢CO\10譯本聖經關鍵字查詢CO'; & 'C:\Program Files\nodejs\npm.cmd' run build; & 'C:\Program Files\nodejs\npm.cmd' run preview
 ```
 
 ### 正式上線一行版
 
 ```powershell
-Set-Location -LiteralPath 'C:\Users\HFP\Desktop\8譯本聖經關鍵字查詢CO'; git add .; git diff --cached --quiet; if ($LASTEXITCODE -ne 0) { git commit -m "Update site UI" }; git push origin main; & 'C:\Program Files\nodejs\npm.cmd' run build; & 'C:\Program Files\nodejs\npx.cmd' netlify-cli@24.8.1 deploy --prod --dir=dist --no-build
+Set-Location -LiteralPath 'C:\Users\HFP\Downloads\10譯本聖經關鍵字查詢CO\10譯本聖經關鍵字查詢CO'; git add .; git diff --cached --quiet; if ($LASTEXITCODE -ne 0) { git commit -m "Update site UI" }; git push origin main; & 'C:\Program Files\nodejs\npm.cmd' run build; & 'C:\Program Files\nodejs\npx.cmd' netlify-cli@24.8.1 deploy --prod --dir=dist --no-build
 ```
 
 ---
@@ -54,19 +54,19 @@ Set-Location -LiteralPath 'C:\Users\HFP\Desktop\8譯本聖經關鍵字查詢CO';
 ### 安裝套件
 
 ```powershell
-Set-Location -LiteralPath 'C:\Users\HFP\Desktop\8譯本聖經關鍵字查詢CO'; & 'C:\Program Files\nodejs\npm.cmd' install
+Set-Location -LiteralPath 'C:\Users\HFP\Downloads\10譯本聖經關鍵字查詢CO\10譯本聖經關鍵字查詢CO'; & 'C:\Program Files\nodejs\npm.cmd' install
 ```
 
 ### 開發模式
 
 ```powershell
-Set-Location -LiteralPath 'C:\Users\HFP\Desktop\8譯本聖經關鍵字查詢CO'; & 'C:\Program Files\nodejs\npm.cmd' run dev
+Set-Location -LiteralPath 'C:\Users\HFP\Downloads\10譯本聖經關鍵字查詢CO\10譯本聖經關鍵字查詢CO'; & 'C:\Program Files\nodejs\npm.cmd' run dev
 ```
 
 ### 本機預覽
 
 ```powershell
-Set-Location -LiteralPath 'C:\Users\HFP\Desktop\8譯本聖經關鍵字查詢CO'; & 'C:\Program Files\nodejs\npm.cmd' run build; & 'C:\Program Files\nodejs\npm.cmd' run preview
+Set-Location -LiteralPath 'C:\Users\HFP\Downloads\10譯本聖經關鍵字查詢CO\10譯本聖經關鍵字查詢CO'; & 'C:\Program Files\nodejs\npm.cmd' run build; & 'C:\Program Files\nodejs\npm.cmd' run preview
 ```
 
 預設預覽網址：
@@ -76,7 +76,7 @@ Set-Location -LiteralPath 'C:\Users\HFP\Desktop\8譯本聖經關鍵字查詢CO';
 ### GitHub push + Netlify deploy
 
 ```powershell
-Set-Location -LiteralPath 'C:\Users\HFP\Desktop\8譯本聖經關鍵字查詢CO'; git add .; git diff --cached --quiet; if ($LASTEXITCODE -ne 0) { git commit -m "Update site UI" }; git push origin main; & 'C:\Program Files\nodejs\npm.cmd' run build; & 'C:\Program Files\nodejs\npx.cmd' netlify-cli@24.8.1 deploy --prod --dir=dist --no-build
+Set-Location -LiteralPath 'C:\Users\HFP\Downloads\10譯本聖經關鍵字查詢CO\10譯本聖經關鍵字查詢CO'; git add .; git diff --cached --quiet; if ($LASTEXITCODE -ne 0) { git commit -m "Update site UI" }; git push origin main; & 'C:\Program Files\nodejs\npm.cmd' run build; & 'C:\Program Files\nodejs\npx.cmd' netlify-cli@24.8.1 deploy --prod --dir=dist --no-build
 ```
 
 這條指令的做法是：
@@ -102,7 +102,7 @@ Set-Location -LiteralPath 'C:\Users\HFP\Desktop\8譯本聖經關鍵字查詢CO';
 執行本機預覽指令：
 
 ```powershell
-Set-Location -LiteralPath 'C:\Users\HFP\Desktop\8譯本聖經關鍵字查詢CO'; & 'C:\Program Files\nodejs\npm.cmd' run build; & 'C:\Program Files\nodejs\npm.cmd' run preview
+Set-Location -LiteralPath 'C:\Users\HFP\Downloads\10譯本聖經關鍵字查詢CO\10譯本聖經關鍵字查詢CO'; & 'C:\Program Files\nodejs\npm.cmd' run build; & 'C:\Program Files\nodejs\npm.cmd' run preview
 ```
 
 然後打開：
@@ -114,7 +114,7 @@ Set-Location -LiteralPath 'C:\Users\HFP\Desktop\8譯本聖經關鍵字查詢CO';
 執行：
 
 ```powershell
-Set-Location -LiteralPath 'C:\Users\HFP\Desktop\8譯本聖經關鍵字查詢CO'; git add .; git diff --cached --quiet; if ($LASTEXITCODE -ne 0) { git commit -m "Update site UI" }; git push origin main; & 'C:\Program Files\nodejs\npm.cmd' run build; & 'C:\Program Files\nodejs\npx.cmd' netlify-cli@24.8.1 deploy --prod --dir=dist --no-build
+Set-Location -LiteralPath 'C:\Users\HFP\Downloads\10譯本聖經關鍵字查詢CO\10譯本聖經關鍵字查詢CO'; git add .; git diff --cached --quiet; if ($LASTEXITCODE -ne 0) { git commit -m "Update site UI" }; git push origin main; & 'C:\Program Files\nodejs\npm.cmd' run build; & 'C:\Program Files\nodejs\npx.cmd' netlify-cli@24.8.1 deploy --prod --dir=dist --no-build
 ```
 
 ### 4. 打開正式站確認結果
@@ -192,7 +192,7 @@ JSON 格式範例在：
 ## 注意事項
 
 - 不要在 `\\?\C:\...` 這種路徑下直接跑 `npm`，會出現 `CMD.EXE 不支援 UNC 路徑` 問題
-- 請先 `Set-Location -LiteralPath 'C:\Users\HFP\Desktop\8譯本聖經關鍵字查詢CO'` 再執行指令
+- 請先 `Set-Location -LiteralPath 'C:\Users\HFP\Downloads\10譯本聖經關鍵字查詢CO\10譯本聖經關鍵字查詢CO'` 再執行指令
 - 如果畫面看起來沒更新，先檢查是不是瀏覽器或 PWA 快取
 
 ## 備註

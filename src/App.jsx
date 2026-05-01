@@ -89,6 +89,8 @@ const FHL_ENGS_BY_BOOK_NUMBER = {
 }
 const MOBILE_HEADER_COLLAPSE_STORAGE_KEY = 'mobile-header-collapsed'
 const VERSE_FONT_SIZE_STORAGE_KEY = 'verse-font-size'
+const SEARCH_HISTORY_STORAGE_KEY = 'search-history'
+const MAX_SEARCH_HISTORY = 20
 const MIN_VERSE_FONT_SIZE = 10
 const MAX_VERSE_FONT_SIZE = 40
 const DEFAULT_MOBILE_VERSE_FONT_SIZE = 18
@@ -678,6 +680,29 @@ function useInstallPrompt() {
   }
 }
 
+function loadSearchHistory() {
+  try {
+    const raw = window.localStorage.getItem(SEARCH_HISTORY_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function persistSearchHistory(history) {
+  window.localStorage.setItem(SEARCH_HISTORY_STORAGE_KEY, JSON.stringify(history))
+}
+
+function addToSearchHistory(history, query) {
+  const trimmed = String(query ?? '').trim()
+  if (!trimmed) {
+    return history
+  }
+
+  const filtered = history.filter((item) => item !== trimmed)
+  return [trimmed, ...filtered].slice(0, MAX_SEARCH_HISTORY)
+}
+
 export default function App() {
   const searchWorkerRef = useRef(null)
   const builtInVersionsRef = useRef({})
@@ -715,6 +740,7 @@ export default function App() {
     error: ''
   })
   const [selectedVerseKeys, setSelectedVerseKeys] = useState([])
+  const [searchHistory, setSearchHistory] = useState(() => loadSearchHistory())
   const [copyMessage, setCopyMessage] = useState('')
   const [readerSelection, setReaderSelection] = useState({
     bookNumber: null,
@@ -1061,6 +1087,23 @@ export default function App() {
 
     return () => window.clearTimeout(timer)
   }, [exactPhrase, limit, query, selectedVersions])
+
+  useEffect(() => {
+    const trimmed = query.trim()
+    if (!trimmed || searchState.requestState !== 'done' || searchState.totalHits === 0) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setSearchHistory((current) => {
+        const next = addToSearchHistory(current, trimmed)
+        persistSearchHistory(next)
+        return next
+      })
+    }, 1500)
+
+    return () => window.clearTimeout(timer)
+  }, [query, searchState.requestState, searchState.totalHits])
 
   useEffect(() => {
     const trimmedQuery = query.trim()
@@ -1578,6 +1621,54 @@ export default function App() {
                   </label>
                 </div>
               </section>
+
+              {searchHistory.length > 0 ? (
+                <section className="border border-slate-200 bg-white/90 p-5 shadow-glow sm:rounded-3xl">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-bold text-slate-900">搜尋紀錄</h2>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchHistory([])
+                        persistSearchHistory([])
+                      }}
+                      className="text-xs font-medium text-slate-500 transition hover:text-red-600"
+                    >
+                      清除全部
+                    </button>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {searchHistory.map((term) => (
+                      <div
+                        key={term}
+                        className="group flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50/90 py-1.5 pl-3 pr-1.5 text-sm transition hover:border-sky-300 hover:bg-sky-50"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setQuery(term)}
+                          className="text-slate-700 transition group-hover:text-sky-700"
+                        >
+                          {term}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchHistory((current) => {
+                              const next = current.filter((item) => item !== term)
+                              persistSearchHistory(next)
+                              return next
+                            })
+                          }}
+                          className="ml-1 flex h-5 w-5 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-100 hover:text-red-600"
+                          aria-label={`刪除搜尋紀錄「${term}」`}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
             </aside>
           ) : null}
 

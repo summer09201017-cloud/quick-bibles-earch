@@ -6,10 +6,25 @@ const PWA_CACHE_VERSION = 'v4'
 const APP_SHELL_CACHE_NAME = `app-shell-${PWA_CACHE_VERSION}`
 const BIBLE_DATA_CACHE_NAME = `bible-data-${PWA_CACHE_VERSION}`
 
+const ENABLE_PWA = process.env.DISABLE_PWA !== '1'
+
+const pwaRegisterStub = {
+  name: 'pwa-register-stub',
+  resolveId(id) {
+    if (id === 'virtual:pwa-register') return '\0virtual:pwa-register'
+  },
+  load(id) {
+    if (id === '\0virtual:pwa-register') {
+      return 'export function registerSW() { return () => {} }'
+    }
+  }
+}
+
 export default defineConfig({
   plugins: [
     react(),
-    VitePWA({
+    !ENABLE_PWA && pwaRegisterStub,
+    ENABLE_PWA && VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
       manifest: {
@@ -66,7 +81,7 @@ export default defineConfig({
         ]
       }
     })
-  ],
+  ].filter(Boolean),
   server: {
     host: '0.0.0.0',
     port: 4176,
@@ -79,5 +94,6 @@ export default defineConfig({
   },
   worker: {
     format: 'es'
-  }
+  },
+  publicDir: process.env.SKIP_PUBLIC_COPY === '1' ? false : 'public'
 })
