@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-const PWA_CACHE_VERSION = 'v4'
+const PWA_CACHE_VERSION = 'v5'
 const APP_SHELL_CACHE_NAME = `app-shell-${PWA_CACHE_VERSION}`
 const BIBLE_DATA_CACHE_NAME = `bible-data-${PWA_CACHE_VERSION}`
 
